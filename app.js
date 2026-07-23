@@ -37,8 +37,68 @@ const tasteIcons = {
   night_view: "야경"
 };
 
+const foodWorldcupItems = [
+  {
+    id: "crab",
+    label: "게장·해산물",
+    tags: ["food", "local_food", "sea"],
+    pattern: /게장|꽃게|해물|해산물|수산|항|회|바다|갈치|준치/,
+    visual: "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=700&q=80"
+  },
+  {
+    id: "meat",
+    label: "떡갈비·고기",
+    tags: ["food", "local_food", "family"],
+    pattern: /떡갈비|갈비|고기|구이|불고기|한우|정육|육회/,
+    visual: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=700&q=80"
+  },
+  {
+    id: "soup",
+    label: "국밥·탕",
+    tags: ["food", "local_food"],
+    pattern: /국밥|탕|해장국|곰탕|설렁탕|백반|찌개/,
+    visual: "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=700&q=80"
+  },
+  {
+    id: "noodle",
+    label: "국수·면",
+    tags: ["food", "local_food", "daytime"],
+    pattern: /국수|냉면|면|막국수|칼국수|소바|라면/,
+    visual: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=700&q=80"
+  },
+  {
+    id: "cafe-dessert",
+    label: "카페·디저트",
+    tags: ["cafe", "mood", "indoor"],
+    pattern: /카페|커피|디저트|베이커리|브런치|찻집|빵/,
+    visual: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=700&q=80"
+  },
+  {
+    id: "market",
+    label: "시장 먹거리",
+    tags: ["food", "market", "local_food"],
+    pattern: /시장|장터|먹거리|분식|포차|거리|골목/,
+    visual: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=700&q=80"
+  },
+  {
+    id: "hanjeongsik",
+    label: "한정식·남도밥상",
+    tags: ["food", "local_food", "family"],
+    pattern: /한정식|밥상|남도|정식|회관|가든|식당/,
+    visual: "https://images.unsplash.com/photo-1498654896293-37aacf113fd9?auto=format&fit=crop&w=700&q=80"
+  },
+  {
+    id: "mood-dining",
+    label: "분위기 좋은 식당",
+    tags: ["food", "mood", "couple"],
+    pattern: /레스토랑|다이닝|카페|라운지|브런치|그릴|바|포차/,
+    visual: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=700&q=80"
+  }
+];
+
 const state = {
   tastes: {},
+  foodCup: createFoodCupState(),
   activePlan: "clear",
   selectedPlaceId: null,
   result: null
@@ -227,6 +287,7 @@ const REGION_PHOTOS = {
 function init() {
   setDefaultDates();
   renderTasteCards();
+  renderFoodWorldcup();
   document.querySelector("#generate").addEventListener("click", generate);
   document.querySelector("#demo-fill").addEventListener("click", fillDemo);
   document.querySelectorAll(".tabs button").forEach((button) => {
@@ -273,7 +334,12 @@ function fillDemo() {
     4: "outdoor",
     5: "night_view"
   };
+  state.foodCup = createFoodCupState();
+  ["crab", "noodle", "cafe-dessert", "hanjeongsik", "crab", "hanjeongsik", "crab"].forEach((foodId) => {
+    chooseFoodCupItem(foodWorldcupItems.find((item) => item.id === foodId), { silent: true });
+  });
   renderTasteCards();
+  renderFoodWorldcup();
   setMessage("여수 발표 데모값을 채웠습니다. 바로 생성해보세요.");
 }
 
@@ -317,6 +383,106 @@ function renderTasteCards() {
       setMessage("");
     });
   });
+}
+
+function createFoodCupState(contenders = foodWorldcupItems, history = []) {
+  return {
+    round: contenders.length,
+    pairs: pairFoodItems(contenders),
+    pairIndex: 0,
+    winners: [],
+    history,
+    champion: null
+  };
+}
+
+function pairFoodItems(items) {
+  const pairs = [];
+  for (let index = 0; index < items.length; index += 2) {
+    pairs.push([items[index], items[index + 1]]);
+  }
+  return pairs;
+}
+
+function renderFoodWorldcup() {
+  const wrap = document.querySelector("#food-cup");
+  if (!wrap) return;
+  const cup = state.foodCup;
+  const ranking = getFoodRanking(cup);
+
+  if (cup.champion) {
+    wrap.innerHTML = `
+      <div class="food-cup-result">
+        <span>음식 취향 순위</span>
+        <strong>${ranking[0]?.label || cup.champion.label}</strong>
+        <div class="food-rank-list">
+          ${ranking
+            .slice(0, 4)
+            .map((item, index) => `<span><b>${index + 1}</b>${item.label}</span>`)
+            .join("")}
+        </div>
+        <p>우승 음식 하나만 보지 않고, 선택 과정에서 살아남은 순위대로 식당 추천 점수에 반영합니다.</p>
+        <button type="button" id="food-cup-reset">다시 고르기</button>
+      </div>
+    `;
+    document.querySelector("#food-cup-reset").addEventListener("click", resetFoodWorldcup);
+    return;
+  }
+
+  const pair = cup.pairs[cup.pairIndex];
+  const title = cup.round === 8 ? "8강" : cup.round === 4 ? "4강" : "결승";
+  wrap.innerHTML = `
+    <div class="food-cup-head">
+      <strong>${title}</strong>
+      <span>${cup.pairIndex + 1} / ${cup.pairs.length}</span>
+      <button type="button" id="food-cup-reset">초기화</button>
+    </div>
+    <div class="food-cup-match">
+      ${pair.map((item) => renderFoodCupChoice(item)).join("")}
+    </div>
+  `;
+
+  wrap.querySelectorAll(".food-choice").forEach((button) => {
+    button.addEventListener("click", () => {
+      chooseFoodCupItem(foodWorldcupItems.find((item) => item.id === button.dataset.foodId));
+    });
+  });
+  document.querySelector("#food-cup-reset").addEventListener("click", resetFoodWorldcup);
+}
+
+function renderFoodCupChoice(item) {
+  return `
+    <button type="button" class="food-choice" data-food-id="${item.id}" style="background-image: linear-gradient(180deg, rgba(7, 31, 48, 0.06), rgba(7, 31, 48, 0.66)), url('${item.visual}');">
+      <span>${item.label}</span>
+    </button>
+  `;
+}
+
+function chooseFoodCupItem(item, options = {}) {
+  if (!item || state.foodCup.champion) return;
+  const cup = state.foodCup;
+  cup.winners.push(item);
+  cup.history.push(item);
+
+  if (cup.pairIndex + 1 < cup.pairs.length) {
+    cup.pairIndex += 1;
+  } else if (cup.winners.length === 1) {
+    cup.champion = cup.winners[0];
+  } else {
+    state.foodCup = createFoodCupState(cup.winners, cup.history);
+  }
+
+  if (!options.silent) renderFoodWorldcup();
+}
+
+function resetFoodWorldcup() {
+  state.foodCup = createFoodCupState();
+  renderFoodWorldcup();
+}
+
+function getFoodRanking(cup = state.foodCup) {
+  const recentFirst = [...(cup.history || [])].reverse();
+  return [...new Map(recentFirst.map((item) => [item.id, item])).values()];
 }
 
 async function generate() {
@@ -422,7 +588,17 @@ function readInput() {
     pet: form.has("pet"),
     styles: form.getAll("styles"),
     request: String(form.get("request") || "").trim(),
-    tastes: Object.values(state.tastes)
+    tastes: Object.values(state.tastes),
+    foodPreference: getFoodPreference()
+  };
+}
+
+function getFoodPreference() {
+  const ranking = getFoodRanking();
+  return {
+    champion: ranking[0] || null,
+    ranking,
+    selected: ranking
   };
 }
 
@@ -443,7 +619,8 @@ function getDays(input) {
 
 function buildPersona(input) {
   const requestTags = extractRequestTags(input.request);
-  const tags = [...new Set([...input.styles, ...input.tastes, ...requestTags])];
+  const foodTags = (input.foodPreference.ranking || []).flatMap((item) => item.tags).slice(0, 8);
+  const tags = [...new Set([...input.styles, ...input.tastes, ...requestTags, ...foodTags])];
   const keywordLabels = tags.slice(0, 9).map((tag) => labels[tag] || tag);
   const paceLabel = { relaxed: "여유로운", normal: "균형 잡힌", packed: "촘촘한" }[input.pace];
   const companionLabel = { solo: "혼자", couple: "커플", friends: "친구", family: "가족", parents: "부모님 동반" }[
@@ -454,6 +631,10 @@ function buildPersona(input) {
   if (input.baby) constraints.push("아기 동반: 휴식 버퍼와 주차/실내 편의 우선");
   if (input.pet) constraints.push("반려동물 동반: 동반 가능 또는 확인 필요 장소만 사용");
   if (input.transport === "walk") constraints.push("도보 중심: 한 권역 집중, 긴 이동 경고");
+  if (input.foodPreference.ranking?.length) {
+    const topFoods = input.foodPreference.ranking.slice(0, 3).map((item, index) => `${index + 1}순위 ${item.label}`);
+    constraints.push(`음식 월드컵 순위: ${topFoods.join(", ")} 선호`);
+  }
   if (input.request) constraints.push(`추가 요청: ${input.request}`);
   return {
     sentence,
@@ -486,14 +667,16 @@ function retrieveCandidates(input, persona) {
       const semantic = matchedTags.length * 10;
       const tasteFit = scoreTasteFit(place, input);
       const metadata = scoreMetadata(place, input);
+      const foodBoost = scoreFoodPreference(place, input.foodPreference);
       const requestMatches = getRequestMatches(place, input.request);
       const textBoost = scoreRequest(place, input.request, requestMatches);
-      const score = Math.round(28 + semantic + tasteFit + metadata + textBoost);
+      const score = Math.round(28 + semantic + tasteFit + metadata + foodBoost + textBoost);
       return {
         ...place,
         rankScore: score,
         ragScore: Math.max(0, Math.min(score, 98)),
         tasteFit,
+        foodMatches: getFoodPreferenceMatches(place, input.foodPreference),
         matchedTags,
         requestMatches,
         evidence: buildEvidence(place, matchedTags, input, requestMatches)
@@ -545,6 +728,31 @@ function scoreMetadata(place, input) {
   if (input.pet && isMealPlace(place)) score -= 4;
   if (input.companion === "couple" && place.tags.includes("couple")) score += 5;
   return score;
+}
+
+function scoreFoodPreference(place, foodPreference) {
+  const ranking = foodPreference?.ranking || foodPreference?.selected || [];
+  if (!ranking.length || !isMealPlace(place)) return 0;
+  let score = 0;
+  const text = `${place.name} ${place.category} ${place.description || ""} ${place.address || ""}`;
+  const weights = [48, 32, 22, 14, 10, 7, 5, 4];
+
+  ranking.forEach((item, index) => {
+    const weight = weights[index] || 3;
+    if (item.pattern.test(text)) score += weight;
+    if (index < 3 && item.tags.some((tag) => place.tags.includes(tag))) {
+      score += Math.max(4, Math.round(weight * 0.25));
+    }
+  });
+
+  return score;
+}
+
+function getFoodPreferenceMatches(place, foodPreference) {
+  const ranking = foodPreference?.ranking || foodPreference?.selected || [];
+  if (!ranking.length || !isMealPlace(place)) return [];
+  const text = `${place.name} ${place.category} ${place.description || ""} ${place.address || ""}`;
+  return ranking.filter((item) => item.pattern.test(text)).map((item) => item.label);
 }
 
 function scoreRequest(place, request, requestMatches = getRequestMatches(place, request)) {
@@ -604,6 +812,7 @@ function extractRequestKeywords(request) {
 function buildEvidence(place, matchedTags, input, requestMatches = []) {
   const reasons = [];
   if (requestMatches.length) reasons.push(`요청 반영: ${requestMatches.join(", ")}`);
+  if (place.foodMatches?.length) reasons.push(`음식 월드컵: ${place.foodMatches.slice(0, 2).join(", ")}`);
   if (matchedTags.length) reasons.push(`취향 태그 ${matchedTags.map((tag) => labels[tag] || tag).join(", ")} 일치`);
   if (place.category === "음식점") reasons.push("식사 시간 배치에 적합");
   if (input.pet && isMealPlace(place) && place.pet !== true) reasons.push("반려동물 동반은 매장 확인 필요");
@@ -677,7 +886,7 @@ function rankForWeather(candidates, weather, revised) {
 
 function naivePick(pool, count, weather) {
   const selected = [];
-  const food = pool.find((place) => place.category === "음식점");
+  const food = pool.find((place) => isMealPlace(place));
   const night = pool.find((place) => place.slots.includes("night") || place.slots.includes("sunset"));
 
   pool.forEach((place) => {

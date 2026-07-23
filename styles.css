@@ -307,6 +307,133 @@ fieldset {
   font-weight: 950;
 }
 
+.food-cup-box {
+  margin-top: 20px;
+}
+
+.food-cup {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff, #f6fcff);
+  padding: 12px;
+  box-shadow: 0 10px 22px rgba(18, 168, 255, 0.1);
+}
+
+.food-cup-head {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.food-cup-head strong,
+.food-cup-result strong {
+  color: #073b69;
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.food-cup-head span,
+.food-cup-result > span {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.food-cup-head button,
+.food-cup-result button {
+  border: 1px solid #bfeaff;
+  border-radius: 999px;
+  background: #fff;
+  color: #008bd2;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.food-cup-match {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.food-choice {
+  position: relative;
+  min-height: 112px;
+  overflow: hidden;
+  border: 1px solid #d7ebf4;
+  border-radius: 14px;
+  background-color: #dff5ff;
+  background-position: center;
+  background-size: cover;
+  color: #fff;
+  padding: 0;
+  text-align: left;
+  box-shadow: 0 8px 18px rgba(18, 168, 255, 0.1);
+}
+
+.food-choice span {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 1;
+  font-size: 15px;
+  font-weight: 950;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.food-choice:hover,
+.food-choice:focus-visible {
+  border-color: var(--blue);
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 3px rgba(18, 168, 255, 0.2),
+    0 12px 24px rgba(18, 168, 255, 0.18);
+}
+
+.food-cup-result {
+  display: grid;
+  gap: 9px;
+}
+
+.food-cup-result p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.food-rank-list {
+  display: grid;
+  gap: 6px;
+}
+
+.food-rank-list span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d8effa;
+  border-radius: 12px;
+  background: #f8fdff;
+  color: #163a56;
+  padding: 8px 9px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.food-rank-list b {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--blue), var(--green));
+  color: #fff;
+  font-size: 12px;
+}
+
 .action-row {
   display: grid;
   grid-template-columns: 1fr 1.35fr;
@@ -1796,6 +1923,8 @@ footer {
   }
 
   .field-pair,
+  .food-cup-head,
+  .food-cup-match,
   .candidate-list,
   .metric-row,
   .schedule-item,
