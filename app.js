@@ -345,9 +345,10 @@ async function generate() {
 }
 
 async function loadPlacesForRegion(region) {
-  if (!API_CONFIG.PLACES_PROXY_URL) return;
+  const proxyUrl = getPlacesProxyUrl();
+  if (!proxyUrl) return;
   try {
-    const url = new URL(API_CONFIG.PLACES_PROXY_URL, window.location.href);
+    const url = new URL(proxyUrl, window.location.href);
     url.searchParams.set("region", region);
     const response = await fetch(url.toString());
     if (!response.ok) throw new Error("Proxy response was not ok.");
@@ -357,6 +358,12 @@ async function loadPlacesForRegion(region) {
   } catch (error) {
     console.warn("프록시 API 호출에 실패해 로컬 장소 데이터로 대체합니다.", error);
   }
+}
+
+function getPlacesProxyUrl() {
+  if (API_CONFIG.PLACES_PROXY_URL) return API_CONFIG.PLACES_PROXY_URL;
+  if (["localhost", "127.0.0.1"].includes(window.location.hostname)) return "/api/places";
+  return "";
 }
 
 function normalizeRemotePlaces(items, fallbackRegion) {
