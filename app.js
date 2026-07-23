@@ -22,6 +22,21 @@ const tasteVisuals = {
   night_view: "https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=700&q=80"
 };
 
+const tasteIcons = {
+  sea: "바다",
+  forest: "정원",
+  cafe: "카페",
+  activity: "체험",
+  popular: "명소",
+  quiet: "한적",
+  local_food: "맛",
+  mood: "무드",
+  indoor: "실내",
+  outdoor: "산책",
+  daytime: "낮",
+  night_view: "야경"
+};
+
 const state = {
   tastes: {},
   activePlan: "clear",
@@ -177,8 +192,15 @@ function renderTasteCards() {
       const renderChoice = (choice) => {
         const [label, tag] = choice;
         return `
-          <button type="button" class="choice-card ${selected === tag ? "selected" : ""}" data-index="${index}" data-tag="${tag}">
-            <img src="${tasteVisuals[tag]}" alt="${label} 이미지" loading="lazy" />
+          <button
+            type="button"
+            class="choice-card ${selected === tag ? "selected" : ""}"
+            data-index="${index}"
+            data-tag="${tag}"
+            style="background-image: linear-gradient(180deg, rgba(16, 44, 74, 0.05), rgba(16, 44, 74, 0.62)), url('${tasteVisuals[tag]}');"
+            aria-label="${label} 선택"
+          >
+            <small>${tasteIcons[tag] || "취향"}</small>
             <span>${label}</span>
           </button>
         `;

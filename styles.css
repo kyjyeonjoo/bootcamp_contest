@@ -247,27 +247,14 @@ fieldset {
   overflow: hidden;
   border: 1px solid #d7ebf4;
   border-radius: 14px;
-  background: #ffffff;
+  background-color: #dff5ff;
+  background-position: center;
+  background-size: cover;
   color: var(--ink);
   padding: 0;
   font-weight: 900;
   text-align: left;
   box-shadow: 0 8px 18px rgba(18, 168, 255, 0.1);
-}
-
-.choice-card img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-}
-
-.choice-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 42%, rgba(16, 44, 74, 0.58));
-  pointer-events: none;
 }
 
 .choice-card span {
@@ -277,8 +264,21 @@ fieldset {
   bottom: 10px;
   z-index: 1;
   color: #fff;
-  font-size: 14px;
+  font-size: 15px;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+}
+
+.choice-card small {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  z-index: 1;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--blue);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 950;
 }
 
 .choice-card.selected {
