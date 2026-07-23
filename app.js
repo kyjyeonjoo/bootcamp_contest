@@ -123,17 +123,17 @@ const CATEGORY_PRESETS_FOR_REMOTE = {
 const weatherInfo = {
   clear: {
     title: "맑은 날 코스",
-    copy: "야외 풍경, 산책, 전망 요소의 점수를 높이고 저녁에는 야경 후보를 배치했습니다.",
+    copy: "야외 풍경, 산책, 전망 요소의 점수를 높이고 저녁에는 야경 장소를 배치했습니다.",
     danger: "맑음"
   },
   rain: {
     title: "비 오는 날 코스",
-    copy: "실내 후보를 우선 검색하고 야외 노출과 환승 부담을 줄이는 방향으로 재배치했습니다.",
+    copy: "실내 장소를 우선 검색하고 야외 노출과 환승 부담을 줄이는 방향으로 재배치했습니다.",
     danger: "우천"
   },
   extreme: {
     title: "폭염·폭설 코스",
-    copy: "12~16시 야외 활동을 피하고 오전·저녁에만 야외 후보를 남기도록 수정했습니다.",
+    copy: "12~16시 야외 활동을 피하고 오전·저녁에만 야외 장소를 남기도록 수정했습니다.",
     danger: "악천후"
   }
 };
@@ -327,7 +327,7 @@ async function generate() {
     return;
   }
 
-  setMessage("여행 후보를 불러오는 중입니다.");
+  setMessage("여행 장소를 불러오는 중입니다.");
   await loadPlacesForRegion(input.region);
   const persona = buildPersona(input);
   const candidates = retrieveCandidates(input, persona);
@@ -355,7 +355,7 @@ async function loadPlacesForRegion(region) {
     const remotePlaces = normalizeRemotePlaces(Array.isArray(payload) ? payload : payload.places, region);
     mergePlaces(remotePlaces);
   } catch (error) {
-    console.warn("프록시 API 호출에 실패해 로컬 후보로 대체합니다.", error);
+    console.warn("프록시 API 호출에 실패해 로컬 장소 데이터로 대체합니다.", error);
   }
 }
 
@@ -383,7 +383,7 @@ function normalizeRemotePlaces(items, fallbackRegion) {
         slots: item.slots || preset.slots,
         tags,
         scores: item.scores || preset.scores,
-        description: item.description || item.overview || `${fallbackRegion} 공공데이터 기반 후보입니다.`
+        description: item.description || item.overview || `${fallbackRegion} 공공데이터 기반 장소입니다.`
       };
     })
     .filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng));
@@ -552,7 +552,7 @@ function scoreRequest(place, request) {
 function buildEvidence(place, matchedTags, input) {
   const reasons = [];
   if (matchedTags.length) reasons.push(`취향 태그 ${matchedTags.map((tag) => labels[tag] || tag).join(", ")} 일치`);
-  if (place.category === "음식점") reasons.push("식사 시간 배치 후보");
+  if (place.category === "음식점") reasons.push("식사 시간 배치에 적합");
   if (input.transport === "car" && place.parking) reasons.push("자가용 이동에 유리");
   if (place.indoor) reasons.push("우천/악천후 대체 가능");
   if (place.outdoor) reasons.push("맑은 날 경험 가치 높음");
@@ -669,7 +669,7 @@ function auditSchedule(days, weather, input) {
   const passed = [];
   days.forEach((day) => {
     if (!day.items.some((item) => item.category === "음식점")) {
-      issues.push({ type: "식사", message: `${day.day}일차에 점심/저녁 식사 후보가 없습니다.` });
+      issues.push({ type: "식사", message: `${day.day}일차에 점심/저녁 식사 장소가 없습니다.` });
     } else {
       passed.push(`${day.day}일차 식사 일정 포함`);
     }
@@ -683,7 +683,7 @@ function auditSchedule(days, weather, input) {
         issues.push({ type: "날씨", message: `${item.start} ${item.name}: 악천후 시간대 야외 일정입니다.` });
       }
       if (input.baby && item.baby === false) {
-        issues.push({ type: "동반", message: `${item.name}: 아기 동반 편의가 낮은 후보입니다.` });
+        issues.push({ type: "동반", message: `${item.name}: 아기 동반 편의가 낮은 장소입니다.` });
       }
       if (input.pet && item.pet !== true) {
         issues.push({ type: "동반", message: `${item.name}: 반려동물 동반 여부 재확인이 필요합니다.` });
@@ -744,7 +744,7 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
       if (meal) {
         items.splice(1, 0, meal);
         used.add(meal.id);
-        actions.push(`${day.day}일차에 식사 후보 ${meal.name}을(를) 추가했습니다.`);
+        actions.push(`${day.day}일차에 식사 장소 ${meal.name}을(를) 추가했습니다.`);
       } else {
         const flexibleMeal = createFlexibleMeal(input.region, day.day, items);
         items.splice(Math.min(1, items.length), 0, flexibleMeal);
@@ -779,7 +779,7 @@ function createFlexibleMeal(region, day, items) {
     tags: ["food", "local_food", "mood"],
     scores: { clear: 4, rain: 4, extreme: 4 },
     description: "같은 식당을 반복하지 않도록 남겨둔 식사 탐색 시간입니다. 지도에서 현재 동선 근처 맛집을 확인해 고르면 됩니다.",
-    evidence: ["중복 일정 방지", "식사 시간 확보", "지도 검색으로 실제 후보 확인"]
+    evidence: ["중복 일정 방지", "식사 시간 확보", "지도 검색으로 실제 장소 확인"]
   };
 }
 
@@ -802,7 +802,7 @@ function improveRoute(items, input) {
 
 function reasonFor(place, weather) {
   if (weather === "rain" && place.indoor) return "우천 플랜에서 실내 적합도가 높아 선택되었습니다.";
-  if (weather === "extreme" && place.indoor) return "악천후 시간대 대체 가능한 실내 후보입니다.";
+  if (weather === "extreme" && place.indoor) return "악천후 시간대 대체 가능한 실내 장소입니다.";
   if (place.category === "음식점") return "여행일당 최소 1회 식사 조건과 지역 먹거리 선호를 반영했습니다.";
   if (place.slots.includes("night") || place.slots.includes("sunset")) return "일몰·야경 선호를 반영해 후반 시간대에 배치했습니다.";
   return "페르소나 키워드와 장소 태그의 유사도가 높아 선택되었습니다.";
@@ -978,7 +978,7 @@ function renderPlaceDetail() {
         <a href="${mapLinks.kakao}" target="_blank" rel="noopener">카카오맵에서 보기</a>
         <a href="${mapLinks.naver}" target="_blank" rel="noopener">네이버지도에서 보기</a>
       </div>
-      <p class="detail-note">추천 근거: ${(place.evidence || ["지역과 취향 조건에 맞는 후보입니다."]).join(" · ")}</p>
+      <p class="detail-note">추천 근거: ${(place.evidence || ["지역과 취향 조건에 맞는 장소입니다."]).join(" · ")}</p>
       <p class="detail-note">좌표: ${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}</p>
     </div>
   `;
@@ -1106,6 +1106,7 @@ function setMessage(message) {
 }
 
 function imageForPlace(place) {
+  if (place?.image) return place.image;
   if (PHOTO_BY_ID[place?.id]) return PHOTO_BY_ID[place.id];
   const key =
     place?.tags?.find((tag) => FALLBACK_PHOTOS[tag]) ||
