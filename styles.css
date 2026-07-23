@@ -1,16 +1,16 @@
 :root {
-  --bg: #f2fbff;
-  --ink: #163047;
-  --muted: #6a7b8a;
-  --line: #d8ecf4;
+  --bg: #eaf9ff;
+  --ink: #102c4a;
+  --muted: #5f7890;
+  --line: #bfeaff;
   --panel: #ffffff;
-  --green: #00a58a;
-  --green-soft: #dcf8f1;
-  --blue: #2493d1;
-  --blue-soft: #e5f6ff;
-  --coral: #ff735c;
-  --gold: #ffb84d;
-  --shadow: 0 18px 38px rgba(36, 147, 209, 0.12);
+  --green: #00c2a8;
+  --green-soft: #d9fff7;
+  --blue: #12a8ff;
+  --blue-soft: #dff5ff;
+  --coral: #ff6b88;
+  --gold: #ffc857;
+  --shadow: 0 18px 38px rgba(18, 168, 255, 0.16);
   color: var(--ink);
   font-family: Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", Arial, sans-serif;
 }
@@ -22,9 +22,10 @@
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(86, 199, 255, 0.28), transparent 32%),
-    radial-gradient(circle at 84% 12%, rgba(255, 184, 77, 0.22), transparent 26%),
-    linear-gradient(180deg, #f7fdff 0%, #eef9ff 52%, #fff9ef 100%),
+    radial-gradient(circle at 10% 5%, rgba(18, 168, 255, 0.32), transparent 30%),
+    radial-gradient(circle at 88% 10%, rgba(255, 200, 87, 0.34), transparent 28%),
+    radial-gradient(circle at 75% 82%, rgba(255, 107, 136, 0.2), transparent 32%),
+    linear-gradient(180deg, #f4fcff 0%, #e5f7ff 48%, #fff4da 100%),
     var(--bg);
 }
 
@@ -69,7 +70,7 @@ button {
   top: 18px;
   padding: 22px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 253, 255, 0.94)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(232, 249, 255, 0.96)),
     #fff;
 }
 
@@ -80,9 +81,19 @@ button {
   position: relative;
 }
 
+.brand::before {
+  content: "";
+  display: block;
+  width: 74px;
+  height: 8px;
+  margin-bottom: 14px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--blue), var(--coral), var(--gold));
+}
+
 .eyebrow {
   margin: 0 0 8px;
-  color: var(--blue);
+  color: #008bd2;
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0;
@@ -262,7 +273,7 @@ fieldset {
 
 .primary {
   border: 1px solid #ff715c;
-  background: linear-gradient(135deg, #ff8a60, #ff5f7a);
+  background: linear-gradient(135deg, #ff8a4c, #ff5f8f);
   color: #fff;
   box-shadow: 0 12px 24px rgba(255, 112, 92, 0.28);
 }
@@ -342,7 +353,7 @@ fieldset {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(9, 39, 56, 0.72), rgba(9, 39, 56, 0.08));
+  background: linear-gradient(90deg, rgba(9, 61, 90, 0.54), rgba(18, 168, 255, 0.08));
 }
 
 .hero-copy {
@@ -509,7 +520,7 @@ fieldset {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  background: linear-gradient(90deg, #e8f8ff, #fff4dc);
+  background: linear-gradient(90deg, #dff5ff, #fff0bf);
   padding: 12px 14px;
   font-weight: 950;
 }
@@ -595,7 +606,7 @@ fieldset {
   background:
     linear-gradient(90deg, rgba(36, 147, 209, 0.1) 1px, transparent 1px),
     linear-gradient(0deg, rgba(36, 147, 209, 0.1) 1px, transparent 1px),
-    #eef9ff;
+    #e3f7ff;
   background-size: 42px 42px;
 }
 
