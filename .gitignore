@@ -7,6 +7,7 @@ secrets.*
 local-server.log
 server-out.log
 server-err.log
+.tmp-video-frames/
 
 # OS/editor noise
 .DS_Store

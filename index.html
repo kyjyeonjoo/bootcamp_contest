@@ -8,7 +8,7 @@
       name="description"
       content="취향과 여행 조건에 맞춰 광주·전남 여행 코스를 추천하는 AI 여행 플래너"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260724-meal-api-fix" />
+    <link rel="stylesheet" href="./styles.css?v=20260724-agent-stage" />
   </head>
   <body>
     <main class="app-shell">
@@ -141,6 +141,53 @@
               </div>
             </section>
 
+            <section class="agent-stage" aria-label="AI 일정 생성 시뮬레이션">
+              <div class="agent-stage-head">
+                <div>
+                  <p class="eyebrow">RAG · Agentic Simulation</p>
+                  <h2>AI가 장소를 찾고, 검증하고, 코스를 고치는 중</h2>
+                </div>
+                <span id="agent-status" class="agent-status">대기</span>
+              </div>
+              <div class="agent-map">
+                <div class="agent-zone zone-input">
+                  <strong>입력</strong>
+                  <span id="agent-input">여행 조건</span>
+                </div>
+                <div class="agent-zone zone-rag">
+                  <strong>RAG 검색</strong>
+                  <span id="agent-rag">장소 후보 검색</span>
+                </div>
+                <div class="agent-zone zone-sim">
+                  <strong>시뮬레이션</strong>
+                  <span id="agent-sim">거리·날씨 검증</span>
+                </div>
+                <div class="agent-zone zone-plan">
+                  <strong>최종 코스</strong>
+                  <span id="agent-plan">3가지 플랜 생성</span>
+                </div>
+                <div class="route-pulse pulse-a"></div>
+                <div class="route-pulse pulse-b"></div>
+                <div class="route-pulse pulse-c"></div>
+                <div class="agent avatar-rag">
+                  <span></span>
+                  <em>검색 에이전트</em>
+                  <b id="bubble-rag">키워드 매칭 중</b>
+                </div>
+                <div class="agent avatar-sim">
+                  <span></span>
+                  <em>검증 에이전트</em>
+                  <b id="bubble-sim">이동 시간 계산 중</b>
+                </div>
+                <div class="agent avatar-weather">
+                  <span></span>
+                  <em>날씨 에이전트</em>
+                  <b id="bubble-weather">우천 대체 확인 중</b>
+                </div>
+                <div id="agent-chips" class="agent-chips"></div>
+              </div>
+            </section>
+
             <section class="recommend-section">
               <div class="section-row">
                 <div>
@@ -203,6 +250,6 @@
     <script src="./config.public.js"></script>
     <script src="./config.local.js"></script>
     <script src="./data/places.js"></script>
-    <script src="./app.js?v=20260724-meal-api-fix"></script>
+    <script src="./app.js?v=20260724-agent-stage"></script>
   </body>
 </html>

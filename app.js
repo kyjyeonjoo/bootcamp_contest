@@ -858,8 +858,38 @@ function renderResults() {
   document.querySelector("#candidate-count").textContent = candidates.length;
   document.querySelector("#avg-score").textContent = Math.round(candidates.reduce((sum, place) => sum + place.ragScore, 0) / candidates.length);
   document.querySelector("#days-count").textContent = getDays(input);
+  renderAgentSimulation();
   renderCandidates(candidates);
   renderPlan();
+}
+
+function renderAgentSimulation() {
+  const { input, persona, candidates, plans } = state.result;
+  const activePlan = plans[state.activePlan] || plans.clear;
+  const firstDay = activePlan.final[0]?.items || [];
+  const topPlaces = candidates.slice(0, 5);
+  const issueCount = Object.values(plans).reduce((sum, plan) => sum + plan.logs.filter((log) => log.tone === "warning").length, 0);
+  const fixedCount = Object.values(plans).reduce((sum, plan) => sum + plan.logs.filter((log) => log.tone === "fix").length, 0);
+
+  document.querySelector("#agent-status").textContent = `${candidates.length}곳 검색 · ${fixedCount}회 조정`;
+  document.querySelector("#agent-input").textContent = `${input.region} · ${getDays(input)}일 · ${transportPolicy[input.transport].label}`;
+  document.querySelector("#agent-rag").textContent = `${persona.keywords.slice(1, 4).join(" · ") || "취향"} 기반`;
+  document.querySelector("#agent-sim").textContent = `${issueCount}개 조건 검토`;
+  document.querySelector("#agent-plan").textContent = `${firstDay.length}곳부터 배치`;
+  document.querySelector("#bubble-rag").textContent = `${topPlaces[0]?.name || input.region} 유사도 우선`;
+  document.querySelector("#bubble-sim").textContent = firstDay[1] ? `${firstDay[0].name} → ${firstDay[1].name}` : "동선 계산 완료";
+  document.querySelector("#bubble-weather").textContent = activePlan.logs.find((log) => log.tone === "fix")?.message || "날씨별 플랜 검증";
+
+  document.querySelector("#agent-chips").innerHTML = topPlaces
+    .map(
+      (place, index) => `
+        <span style="--delay:${index * 0.35}s; --lane:${index % 3}">
+          <strong>${place.ragScore}</strong>
+          ${place.name}
+        </span>
+      `
+    )
+    .join("");
 }
 
 function renderCandidates(candidates) {
@@ -893,6 +923,7 @@ function renderPlan() {
   document.querySelector("#plan-title").textContent = plan.title;
   document.querySelector("#plan-description").textContent = plan.description;
   document.querySelector("#plan-score").textContent = plan.score;
+  renderAgentSimulation();
   document.querySelectorAll(".tabs button").forEach((button) => {
     button.classList.toggle("active", button.dataset.plan === state.activePlan);
   });
