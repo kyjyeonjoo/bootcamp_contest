@@ -40,6 +40,7 @@ const tasteIcons = {
 const state = {
   tastes: {},
   activePlan: "clear",
+  selectedPlaceId: null,
   result: null
 };
 
@@ -244,6 +245,7 @@ function generate() {
 
   state.result = { input, persona, candidates, plans };
   state.activePlan = "clear";
+  state.selectedPlaceId = candidates[0]?.id || null;
   renderResults();
 }
 
@@ -630,7 +632,7 @@ function renderCandidates(candidates) {
     .slice(0, 6)
     .map((place) => {
       return `
-        <article class="candidate-card">
+        <button type="button" class="candidate-card ${state.selectedPlaceId === place.id ? "active" : ""}" data-place-id="${place.id}">
           <img src="${imageForPlace(place)}" alt="${place.name} 사진" loading="lazy" />
           <div class="candidate-body">
             <strong>${place.name}</strong>
@@ -640,10 +642,14 @@ function renderCandidates(candidates) {
             <span class="tag score">${place.ragScore}점</span>
             ${place.evidence.map((item) => `<span class="tag">${item}</span>`).join("")}
           </div>
-        </article>
+        </button>
       `;
     })
     .join("");
+  document.querySelectorAll(".candidate-card").forEach((card) => {
+    card.addEventListener("click", () => showPlaceDetail(card.dataset.placeId));
+  });
+  renderPlaceDetail();
 }
 
 function renderPlan() {
@@ -656,6 +662,9 @@ function renderPlan() {
     button.classList.toggle("active", button.dataset.plan === state.activePlan);
   });
   document.querySelector("#final-timeline").innerHTML = renderTimeline(plan.final);
+  document.querySelectorAll(".schedule-item").forEach((item) => {
+    item.addEventListener("click", () => showPlaceDetail(item.dataset.placeId));
+  });
   document.querySelector("#simulation-log").innerHTML = plan.logs
     .slice(0, 7)
     .map(
@@ -676,7 +685,7 @@ function renderTimeline(days) {
       const items = day.items
         .map(
           (item, index) => `
-            <div class="schedule-item">
+            <button type="button" class="schedule-item" data-place-id="${item.id}">
               <img class="schedule-photo" src="${imageForPlace(item)}" alt="${item.name} 사진" loading="lazy" />
               <div>
                 <div class="place-title">
@@ -687,7 +696,7 @@ function renderTimeline(days) {
                 <div class="time">${item.start} - ${item.end}</div>
                 <p class="reason">${item.reason}</p>
               </div>
-            </div>
+            </button>
           `
         )
         .join("");
@@ -702,6 +711,65 @@ function renderTimeline(days) {
       `;
     })
     .join("");
+}
+
+function showPlaceDetail(placeId) {
+  state.selectedPlaceId = placeId;
+  renderPlaceDetail();
+  document.querySelectorAll(".candidate-card").forEach((card) => {
+    card.classList.toggle("active", card.dataset.placeId === placeId);
+  });
+  document.querySelector("#place-detail")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function renderPlaceDetail() {
+  const detail = document.querySelector("#place-detail");
+  if (!detail || !state.result?.candidates?.length) return;
+  const place = findPlaceById(state.selectedPlaceId) || state.result.candidates[0];
+  if (!place) {
+    detail.classList.add("hidden");
+    return;
+  }
+  detail.classList.remove("hidden");
+  const petText = place.pet === true ? "가능" : place.pet === false ? "불가" : "확인 필요";
+  const babyText = place.baby ? "편의 좋음" : "동선 확인 필요";
+  const indoorText = place.indoor ? "실내" : "야외";
+  const parkingText = place.parking ? "주차 가능" : "주차 확인 필요";
+  const tags = place.tags.slice(0, 7).map((tag) => labels[tag] || tag);
+  detail.innerHTML = `
+    <img src="${imageForPlace(place)}" alt="${place.name} 사진" />
+    <div class="place-detail-body">
+      <p class="eyebrow">장소 상세</p>
+      <h3>${place.name}</h3>
+      <p>${place.description}</p>
+      <div class="detail-grid">
+        <span><strong>분류</strong>${place.category}</span>
+        <span><strong>공간</strong>${indoorText}</span>
+        <span><strong>체류</strong>${place.duration}분</span>
+        <span><strong>주차</strong>${parkingText}</span>
+        <span><strong>아기</strong>${babyText}</span>
+        <span><strong>반려동물</strong>${petText}</span>
+      </div>
+      <div class="detail-tags">
+        ${tags.map((tag) => `<span>${tag}</span>`).join("")}
+      </div>
+      <p class="detail-note">추천 근거: ${(place.evidence || ["지역과 취향 조건에 맞는 후보입니다."]).join(" · ")}</p>
+      <p class="detail-note">좌표: ${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}</p>
+    </div>
+  `;
+}
+
+function findPlaceById(placeId) {
+  if (!placeId) return null;
+  const fromCandidates = state.result?.candidates?.find((place) => place.id === placeId);
+  if (fromCandidates) return fromCandidates;
+  const plans = Object.values(state.result?.plans || {});
+  for (const plan of plans) {
+    const items = plan.final.flatMap((day) => day.items);
+    const found = items.find((place) => place.id === placeId);
+    if (found) return found;
+  }
+  return null;
 }
 
 function renderMap(days) {
