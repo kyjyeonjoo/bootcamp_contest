@@ -1148,6 +1148,7 @@ function renderResults() {
   renderAgentSimulation();
   renderCandidates(candidates);
   renderPlan();
+  document.querySelector(".result-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderAgentSimulation() {
