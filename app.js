@@ -7,6 +7,21 @@ const tasteQuestions = [
   { question: "선호 시간대", a: ["낮 풍경", "daytime"], b: ["일몰·야경", "night_view"] }
 ];
 
+const tasteVisuals = {
+  sea: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=700&q=80",
+  forest: "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=700&q=80",
+  cafe: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=700&q=80",
+  activity: "https://images.unsplash.com/photo-1522163182402-834f871fd851?auto=format&fit=crop&w=700&q=80",
+  popular: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=700&q=80",
+  quiet: "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=700&q=80",
+  local_food: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=700&q=80",
+  mood: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=700&q=80",
+  indoor: "https://images.unsplash.com/photo-1566127444979-b3d2b654e3d7?auto=format&fit=crop&w=700&q=80",
+  outdoor: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=700&q=80",
+  daytime: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=700&q=80",
+  night_view: "https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=700&q=80"
+};
+
 const state = {
   tastes: {},
   activePlan: "clear",
@@ -159,12 +174,21 @@ function renderTasteCards() {
   wrap.innerHTML = tasteQuestions
     .map((item, index) => {
       const selected = state.tastes[index];
+      const renderChoice = (choice) => {
+        const [label, tag] = choice;
+        return `
+          <button type="button" class="choice-card ${selected === tag ? "selected" : ""}" data-index="${index}" data-tag="${tag}">
+            <img src="${tasteVisuals[tag]}" alt="${label} 이미지" loading="lazy" />
+            <span>${label}</span>
+          </button>
+        `;
+      };
       return `
         <article class="taste-card">
           <p>${index + 1}. ${item.question}</p>
           <div class="choice-row">
-            <button type="button" class="${selected === item.a[1] ? "selected" : ""}" data-index="${index}" data-tag="${item.a[1]}">${item.a[0]}</button>
-            <button type="button" class="${selected === item.b[1] ? "selected" : ""}" data-index="${index}" data-tag="${item.b[1]}">${item.b[0]}</button>
+            ${renderChoice(item.a)}
+            ${renderChoice(item.b)}
           </div>
         </article>
       `;
