@@ -60,6 +60,17 @@ function sendText(res, status, text, type = "text/plain; charset=utf-8") {
   res.end(text);
 }
 
+function getBrowserLocalConfigScript() {
+  const config = readLocalConfig();
+  const publicConfig = {
+    PLACES_PROXY_URL: "/api/places"
+  };
+  if (config.KAKAO_MAP_JS_KEY) {
+    publicConfig.KAKAO_MAP_JS_KEY = config.KAKAO_MAP_JS_KEY;
+  }
+  return `window.TRAVEL_CONFIG = { ...(window.TRAVEL_CONFIG || {}), ${JSON.stringify(publicConfig).slice(1, -1)} };\n`;
+}
+
 async function fetchTourApi(pathname, params) {
   const key = getApiKey();
   if (!key) throw new Error("config.local.js에 TourAPI 키가 없습니다.");
@@ -279,6 +290,10 @@ async function getPlaces(regionName) {
 function serveStatic(req, res) {
   const requestUrl = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = decodeURIComponent(requestUrl.pathname === "/" ? "/index.html" : requestUrl.pathname);
+  if (pathname === "/config.local.js") {
+    sendText(res, 200, getBrowserLocalConfigScript(), "application/javascript; charset=utf-8");
+    return;
+  }
   const file = path.normalize(path.join(ROOT, pathname.replace(/^\/+/, "")));
   if (!file.startsWith(ROOT)) {
     sendText(res, 403, "Forbidden");
