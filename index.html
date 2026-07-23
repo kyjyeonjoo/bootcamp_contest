@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>광주·전남 AI 여행 플래너</title>
+    <meta
+      name="description"
+      content="취향 선택과 여행 조건을 바탕으로 광주·전남의 날씨별 실행 가능한 여행 일정을 추천합니다."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">RAG + 시뮬레이션 MVP</p>
+        <h1>광주·전남 AI 여행 플래너</h1>
+        <p class="lead">
+          여행 조건과 취향 선택을 분석해 맑음, 비, 폭염·악천후 3가지 실행 가능한 코스를 만듭니다.
+        </p>
+      </div>
+      <div class="status-panel" aria-label="생성 단계">
+        <span data-status="input" class="active">입력</span>
+        <span data-status="taste">취향</span>
+        <span data-status="search">검색</span>
+        <span data-status="simulate">검증</span>
+        <span data-status="done">완료</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="planner-panel" aria-labelledby="input-title">
+        <div class="section-title">
+          <p class="eyebrow">STEP 1</p>
+          <h2 id="input-title">여행 기본 정보</h2>
+        </div>
+
+        <form id="trip-form" class="trip-form">
+          <label>
+            여행 지역
+            <select name="region">
+              <option>여수</option>
+              <option>광주</option>
+              <option>담양</option>
+              <option>순천</option>
+              <option>목포</option>
+            </select>
+          </label>
+
+          <label>
+            시작일
+            <input name="startDate" type="date" required />
+          </label>
+
+          <label>
+            종료일
+            <input name="endDate" type="date" required />
+          </label>
+
+          <label>
+            인원
+            <input name="people" type="number" min="1" max="10" value="2" />
+          </label>
+
+          <label>
+            동반 유형
+            <select name="companion">
+              <option value="couple">커플</option>
+              <option value="solo">혼자</option>
+              <option value="friends">친구</option>
+              <option value="family">가족</option>
+              <option value="parents">부모님</option>
+            </select>
+          </label>
+
+          <label>
+            주 교통수단
+            <select name="transport">
+              <option value="car">자가용</option>
+              <option value="transit">대중교통</option>
+              <option value="walk">도보 중심</option>
+              <option value="taxi">택시·혼합</option>
+            </select>
+          </label>
+
+          <label>
+            일정 강도
+            <select name="pace">
+              <option value="relaxed">느슨하게</option>
+              <option value="normal">보통</option>
+              <option value="packed">빡빡하게</option>
+            </select>
+          </label>
+
+          <fieldset class="checkbox-row">
+            <legend>특수 조건</legend>
+            <label><input name="baby" type="checkbox" /> 아기 동반</label>
+            <label><input name="pet" type="checkbox" /> 반려동물 동반</label>
+          </fieldset>
+
+          <fieldset class="chip-field">
+            <legend>여행 스타일</legend>
+            <label><input type="checkbox" name="styles" value="food" checked /> 먹거리</label>
+            <label><input type="checkbox" name="styles" value="mood" checked /> 분위기</label>
+            <label><input type="checkbox" name="styles" value="healing" /> 힐링</label>
+            <label><input type="checkbox" name="styles" value="nature" checked /> 자연</label>
+            <label><input type="checkbox" name="styles" value="activity" /> 체험</label>
+            <label><input type="checkbox" name="styles" value="culture" /> 문화</label>
+          </fieldset>
+
+          <label class="full">
+            추가 요청
+            <textarea
+              name="request"
+              maxlength="200"
+              rows="3"
+              placeholder="예: 게장 식사를 포함하고 싶음, 야경을 꼭 보고 싶음"
+            ></textarea>
+          </label>
+        </form>
+      </section>
+
+      <section class="taste-panel" aria-labelledby="taste-title">
+        <div class="section-title">
+          <p class="eyebrow">STEP 2</p>
+          <h2 id="taste-title">취향 선택</h2>
+        </div>
+        <div id="taste-cards" class="taste-cards"></div>
+        <div class="button-row">
+          <button id="reset-taste" type="button" class="secondary">선택 초기화</button>
+          <button id="generate" type="button" class="primary">일정 생성</button>
+        </div>
+        <p id="form-message" class="form-message" role="status"></p>
+      </section>
+
+      <section class="result-panel" aria-live="polite">
+        <div class="empty-state" id="empty-state">
+          <p class="eyebrow">STEP 3</p>
+          <h2>조건을 입력하고 일정을 생성해보세요</h2>
+          <p>
+            로컬 샘플 데이터로 동작하므로 API 키가 없어도 발표 데모를 바로 진행할 수 있습니다.
+          </p>
+        </div>
+
+        <div id="results" class="results hidden">
+          <div class="persona-card">
+            <div>
+              <p class="eyebrow">PERSONA</p>
+              <h2 id="persona"></h2>
+              <p id="keywords" class="keyword-line"></p>
+            </div>
+            <div class="metric-grid">
+              <span><strong id="candidate-count">0</strong>후보</span>
+              <span><strong id="revision-count">0</strong>수정</span>
+              <span><strong id="day-count">1</strong>일정일</span>
+            </div>
+          </div>
+
+          <div class="plan-tabs" role="tablist" aria-label="날씨별 플랜">
+            <button class="active" data-plan="clear" type="button">맑음</button>
+            <button data-plan="rain" type="button">비</button>
+            <button data-plan="extreme" type="button">폭염·악천후</button>
+          </div>
+
+          <div class="plan-summary">
+            <h3 id="plan-title"></h3>
+            <p id="plan-description"></p>
+          </div>
+
+          <div class="result-grid">
+            <div>
+              <h3>일정 타임라인</h3>
+              <div id="timeline" class="timeline"></div>
+            </div>
+            <div>
+              <h3>지도 미리보기</h3>
+              <div id="map" class="map" aria-label="장소 위치 지도"></div>
+              <p class="note">이동 시간은 좌표 기반 추정치이며 실제 교통 상황과 다를 수 있습니다.</p>
+            </div>
+          </div>
+
+          <div class="report">
+            <h3>시뮬레이션 보고서</h3>
+            <div id="report-list" class="report-list"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      추천 결과는 참고용입니다. 영업시간, 입장 정책, 반려동물 동반 가능 여부는 방문 전 다시 확인해주세요.
+    </footer>
+
+    <script src="./data/places.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
