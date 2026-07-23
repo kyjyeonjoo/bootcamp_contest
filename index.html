@@ -8,7 +8,7 @@
       name="description"
       content="취향과 여행 조건에 맞춰 광주·전남 여행 코스를 추천하는 AI 여행 플래너"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260724-agent-animated" />
+    <link rel="stylesheet" href="./styles.css?v=20260724-weather-journey" />
   </head>
   <body>
     <main class="app-shell">
@@ -149,7 +149,7 @@
                 </div>
                 <span id="agent-status" class="agent-status">대기</span>
               </div>
-              <div class="agent-map">
+              <div id="agent-map" class="agent-map">
                 <div class="agent-zone zone-input">
                   <strong>입력</strong>
                   <span id="agent-input">여행 조건</span>
@@ -169,6 +169,14 @@
                 <div class="route-pulse pulse-a"></div>
                 <div class="route-pulse pulse-b"></div>
                 <div class="route-pulse pulse-c"></div>
+                <div id="journey-marker" class="journey-marker" aria-hidden="true">
+                  <span id="journey-icon">🚗</span>
+                </div>
+                <div id="weather-scene" class="weather-scene" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
                 <div class="agent avatar-rag">
                   <span></span>
                   <em>검색 에이전트</em>
@@ -250,6 +258,6 @@
     <script src="./config.public.js"></script>
     <script src="./config.local.js"></script>
     <script src="./data/places.js"></script>
-    <script src="./app.js?v=20260724-agent-animated"></script>
+    <script src="./app.js?v=20260724-weather-journey"></script>
   </body>
 </html>

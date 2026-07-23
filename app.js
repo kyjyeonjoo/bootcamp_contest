@@ -872,6 +872,8 @@ function renderAgentSimulation() {
   const fixedCount = Object.values(plans).reduce((sum, plan) => sum + plan.logs.filter((log) => log.tone === "fix").length, 0);
 
   document.querySelector("#agent-status").textContent = `${candidates.length}곳 검색 · ${fixedCount}회 조정`;
+  document.querySelector("#agent-map").dataset.weather = state.activePlan;
+  document.querySelector("#journey-icon").textContent = transportIcon(input.transport);
   document.querySelector("#agent-input").textContent = `${input.region} · ${getDays(input)}일 · ${transportPolicy[input.transport].label}`;
   document.querySelector("#agent-rag").textContent = `${persona.keywords.slice(1, 4).join(" · ") || "취향"} 기반`;
   document.querySelector("#agent-sim").textContent = `${issueCount}개 조건 검토`;
@@ -888,8 +890,17 @@ function renderAgentSimulation() {
           ${place.name}
         </span>
       `
-    )
+      )
     .join("");
+}
+
+function transportIcon(transport) {
+  return {
+    car: "🚗",
+    transit: "🚌",
+    walk: "🚶",
+    taxi: "🚕"
+  }[transport] || "🚗";
 }
 
 function renderCandidates(candidates) {
