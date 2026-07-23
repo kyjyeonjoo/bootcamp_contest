@@ -101,27 +101,42 @@ const weatherInfo = {
 
 const PHOTO_BY_ID = {
   YS_01: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Odongdo%20%28view%20from%20west%20breakwater%29%20in%202017.jpg?width=900",
-  YS_02: "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=900&q=80",
-  YS_03: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Yeosu%20Maritime%20Cable%20Car%20View.jpg?width=900",
-  YS_04: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Yeosu%20Lights.jpg?width=900",
-  YS_05: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
-  YS_06: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Yeosu%20the%20Beautiful.jpg?width=900",
-  GJ_01: "https://images.unsplash.com/photo-1577720643272-265f09367456?auto=format&fit=crop&w=900&q=80",
+  YS_02: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=900&q=80",
+  YS_03: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80",
+  YS_04: "https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=900&q=80",
+  YS_05: "https://images.unsplash.com/photo-1498654896293-37aacf113fd9?auto=format&fit=crop&w=900&q=80",
+  YS_06: "https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=900&q=80",
+  GJ_01: "https://images.unsplash.com/photo-1566127444979-b3d2b654e3d7?auto=format&fit=crop&w=900&q=80",
   GJ_02: "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=900&q=80",
   GJ_03: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
-  GJ_04: "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=900&q=80",
+  GJ_04: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=900&q=80",
   DY_01: "https://images.unsplash.com/photo-1541959833400-049d37f98ccd?auto=format&fit=crop&w=900&q=80",
-  DY_02: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+  DY_02: "https://images.unsplash.com/photo-1476231682828-37e571bc172f?auto=format&fit=crop&w=900&q=80",
   DY_03: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=900&q=80",
   DY_04: "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=80",
-  SC_01: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
-  SC_02: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+  SC_01: "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=900&q=80",
+  SC_02: "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=900&q=80",
   SC_03: "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=900&q=80",
   SC_04: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=900&q=80",
-  MP_01: "https://images.unsplash.com/photo-1566127444979-b3d2b654e3d7?auto=format&fit=crop&w=900&q=80",
+  MP_01: "https://images.unsplash.com/photo-1577083552431-6e5fd01aa342?auto=format&fit=crop&w=900&q=80",
   MP_02: "https://commons.wikimedia.org/wiki/Special:Redirect/file/20240225%20View%20of%20Yudal%20Mountain%2C%20Korea.jpg?width=900",
-  MP_03: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+  MP_03: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80",
   MP_04: "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=900&q=80"
+};
+
+const tasteOpposites = {
+  sea: ["forest"],
+  forest: ["sea"],
+  cafe: ["activity"],
+  activity: ["cafe"],
+  popular: ["quiet"],
+  quiet: ["popular"],
+  local_food: ["mood"],
+  mood: ["local_food"],
+  indoor: ["outdoor"],
+  outdoor: ["indoor"],
+  daytime: ["night_view"],
+  night_view: ["daytime"]
 };
 
 const REGION_PHOTOS = {
@@ -325,17 +340,52 @@ function retrieveCandidates(input, persona) {
     .map((place) => {
       const matchedTags = place.tags.filter((tag) => persona.tags.includes(tag));
       const semantic = matchedTags.length * 10;
+      const tasteFit = scoreTasteFit(place, input);
       const metadata = scoreMetadata(place, input);
       const textBoost = scoreRequest(place, input.request);
-      const score = Math.round(35 + semantic + metadata + textBoost);
+      const score = Math.round(30 + semantic + tasteFit + metadata + textBoost);
       return {
         ...place,
-        ragScore: Math.min(score, 98),
+        rankScore: score,
+        ragScore: Math.max(0, Math.min(score, 98)),
+        tasteFit,
         matchedTags,
         evidence: buildEvidence(place, matchedTags, input)
       };
     })
-    .sort((a, b) => b.ragScore - a.ragScore);
+    .sort((a, b) => b.rankScore - a.rankScore || b.tasteFit - a.tasteFit);
+}
+
+function scoreTasteFit(place, input) {
+  let score = 0;
+  const selected = new Set(input.tastes || []);
+
+  selected.forEach((taste) => {
+    if (place.tags.includes(taste)) score += 18;
+    (tasteOpposites[taste] || []).forEach((opposite) => {
+      if (place.tags.includes(opposite)) score -= 10;
+    });
+  });
+
+  if (selected.has("sea") && place.tags.includes("sea")) score += 12;
+  if (selected.has("forest") && (place.tags.includes("forest") || place.tags.includes("garden"))) score += 12;
+  if (selected.has("cafe") && (place.tags.includes("cafe") || place.tags.includes("mood"))) score += 10;
+  if (selected.has("activity") && (place.tags.includes("activity") || place.category.includes("체험"))) score += 10;
+  if (selected.has("popular") && place.tags.includes("popular")) score += 12;
+  if (selected.has("quiet") && place.tags.includes("quiet")) score += 12;
+  if (selected.has("local_food") && place.category === "음식점") score += 14;
+  if (selected.has("mood") && (place.tags.includes("mood") || place.tags.includes("photo"))) score += 10;
+  if (selected.has("indoor") && place.indoor) score += 14;
+  if (selected.has("outdoor") && place.outdoor) score += 14;
+  if (selected.has("daytime") && (place.slots.includes("morning") || place.slots.includes("afternoon"))) score += 8;
+  if (selected.has("night_view") && (place.slots.includes("night") || place.slots.includes("sunset"))) score += 14;
+
+  if (selected.has("indoor") && place.outdoor && !place.indoor) score -= 8;
+  if (selected.has("outdoor") && place.indoor && !place.outdoor) score -= 8;
+  if (selected.has("daytime") && place.slots.includes("night")) score -= 6;
+  if (selected.has("night_view") && place.slots.every((slot) => slot !== "night" && slot !== "sunset")) score -= 5;
+
+  return score;
 }
 
 function scoreMetadata(place, input) {
@@ -413,7 +463,7 @@ function buildDraftSchedule(weather, input, candidates) {
 function rankForWeather(candidates, weather, revised) {
   return [...candidates]
     .map((place) => {
-      let score = place.ragScore + place.scores[weather] * 8;
+      let score = (place.rankScore || place.ragScore) + (place.tasteFit || 0) * 0.35 + place.scores[weather] * 8;
       if (weather === "rain" && place.indoor) score += revised ? 26 : 8;
       if (weather === "rain" && place.outdoor) score -= revised ? 20 : 0;
       if (weather === "extreme" && place.indoor) score += revised ? 24 : 6;
@@ -736,6 +786,7 @@ function renderPlaceDetail() {
   const indoorText = place.indoor ? "실내" : "야외";
   const parkingText = place.parking ? "주차 가능" : "주차 확인 필요";
   const tags = place.tags.slice(0, 7).map((tag) => labels[tag] || tag);
+  const mapLinks = getMapLinks(place);
   detail.innerHTML = `
     <img src="${imageForPlace(place)}" alt="${place.name} 사진" />
     <div class="place-detail-body">
@@ -753,10 +804,22 @@ function renderPlaceDetail() {
       <div class="detail-tags">
         ${tags.map((tag) => `<span>${tag}</span>`).join("")}
       </div>
+      <div class="detail-actions" aria-label="지도에서 장소 확인">
+        <a href="${mapLinks.kakao}" target="_blank" rel="noopener">카카오맵에서 보기</a>
+        <a href="${mapLinks.naver}" target="_blank" rel="noopener">네이버지도에서 보기</a>
+      </div>
       <p class="detail-note">추천 근거: ${(place.evidence || ["지역과 취향 조건에 맞는 후보입니다."]).join(" · ")}</p>
       <p class="detail-note">좌표: ${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}</p>
     </div>
   `;
+}
+
+function getMapLinks(place) {
+  const query = encodeURIComponent(`${place.region} ${place.name}`);
+  return {
+    kakao: `https://map.kakao.com/link/search/${query}`,
+    naver: `https://map.naver.com/p/search/${query}`
+  };
 }
 
 function findPlaceById(placeId) {

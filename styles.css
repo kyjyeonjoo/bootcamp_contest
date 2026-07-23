@@ -613,6 +613,39 @@ fieldset {
   font-weight: 900;
 }
 
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 12px;
+}
+
+.detail-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border-radius: 999px;
+  border: 1px solid #9edff8;
+  background: #ffffff;
+  color: #0878b7;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 950;
+  text-decoration: none;
+  box-shadow: 0 8px 18px rgba(18, 168, 255, 0.12);
+}
+
+.detail-actions a:first-child {
+  border-color: #ffe06b;
+  background: #ffe86e;
+  color: #3d3400;
+}
+
+.detail-actions a:hover {
+  transform: translateY(-1px);
+}
+
 .detail-note {
   margin-bottom: 4px;
   font-size: 13px;
