@@ -81,6 +81,45 @@ const labels = {
   couple: "커플"
 };
 
+const CATEGORY_PRESETS_FOR_REMOTE = {
+  음식점: {
+    category: "음식점",
+    duration: 70,
+    indoor: true,
+    outdoor: false,
+    slots: ["lunch", "dinner"],
+    tags: ["food", "local_food"],
+    scores: { clear: 4, rain: 4, extreme: 4 }
+  },
+  문화시설: {
+    category: "문화시설",
+    duration: 85,
+    indoor: true,
+    outdoor: false,
+    slots: ["morning", "afternoon"],
+    tags: ["culture", "indoor", "rain"],
+    scores: { clear: 4, rain: 5, extreme: 5 }
+  },
+  체험: {
+    category: "체험",
+    duration: 90,
+    indoor: true,
+    outdoor: false,
+    slots: ["afternoon"],
+    tags: ["activity", "family", "indoor"],
+    scores: { clear: 3, rain: 5, extreme: 5 }
+  },
+  default: {
+    category: "자연",
+    duration: 85,
+    indoor: false,
+    outdoor: true,
+    slots: ["morning", "afternoon"],
+    tags: ["nature", "walking", "photo"],
+    scores: { clear: 5, rain: 1, extreme: 2 }
+  }
+};
+
 const weatherInfo = {
   clear: {
     title: "맑은 날 코스",
@@ -122,6 +161,44 @@ const PHOTO_BY_ID = {
   MP_02: "https://commons.wikimedia.org/wiki/Special:Redirect/file/20240225%20View%20of%20Yudal%20Mountain%2C%20Korea.jpg?width=900",
   MP_03: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80",
   MP_04: "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=900&q=80"
+};
+
+const FALLBACK_PHOTOS = {
+  sea: [
+    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=900&q=80"
+  ],
+  forest: [
+    "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1476231682828-37e571bc172f?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1541959833400-049d37f98ccd?auto=format&fit=crop&w=900&q=80"
+  ],
+  food: [
+    "https://images.unsplash.com/photo-1498654896293-37aacf113fd9?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80"
+  ],
+  cafe: [
+    "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80"
+  ],
+  culture: [
+    "https://images.unsplash.com/photo-1566127444979-b3d2b654e3d7?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1577083552431-6e5fd01aa342?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=80"
+  ],
+  night_view: [
+    "https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=900&q=80"
+  ],
+  default: [
+    "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+    "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=900&q=80"
+  ]
 };
 
 const tasteOpposites = {
@@ -242,7 +319,7 @@ function renderTasteCards() {
   });
 }
 
-function generate() {
+async function generate() {
   const input = readInput();
   const error = validate(input);
   if (error) {
@@ -250,6 +327,8 @@ function generate() {
     return;
   }
 
+  setMessage("여행 후보를 불러오는 중입니다.");
+  await loadPlacesForRegion(input.region);
   const persona = buildPersona(input);
   const candidates = retrieveCandidates(input, persona);
   const plans = {
@@ -262,6 +341,63 @@ function generate() {
   state.activePlan = "clear";
   state.selectedPlaceId = candidates[0]?.id || null;
   renderResults();
+  setMessage("");
+}
+
+async function loadPlacesForRegion(region) {
+  if (!API_CONFIG.PLACES_PROXY_URL) return;
+  try {
+    const url = new URL(API_CONFIG.PLACES_PROXY_URL, window.location.href);
+    url.searchParams.set("region", region);
+    const response = await fetch(url.toString());
+    if (!response.ok) throw new Error("Proxy response was not ok.");
+    const payload = await response.json();
+    const remotePlaces = normalizeRemotePlaces(Array.isArray(payload) ? payload : payload.places, region);
+    mergePlaces(remotePlaces);
+  } catch (error) {
+    console.warn("프록시 API 호출에 실패해 로컬 후보로 대체합니다.", error);
+  }
+}
+
+function normalizeRemotePlaces(items, fallbackRegion) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter((item) => item?.name || item?.title)
+    .map((item, index) => {
+      const category = item.category || item.contentType || "자연";
+      const preset = CATEGORY_PRESETS_FOR_REMOTE[category] || CATEGORY_PRESETS_FOR_REMOTE.default;
+      const tags = [...new Set([...(item.tags || []), ...preset.tags])];
+      return {
+        id: item.id || item.contentId || `REMOTE_${fallbackRegion}_${index}`,
+        name: item.name || item.title,
+        region: item.region || fallbackRegion,
+        category: preset.category,
+        lat: Number(item.lat || item.mapY || item.latitude),
+        lng: Number(item.lng || item.mapX || item.longitude),
+        duration: Number(item.duration || preset.duration),
+        indoor: Boolean(item.indoor ?? preset.indoor),
+        outdoor: Boolean(item.outdoor ?? preset.outdoor),
+        parking: item.parking ?? null,
+        baby: item.baby ?? true,
+        pet: item.pet ?? null,
+        slots: item.slots || preset.slots,
+        tags,
+        scores: item.scores || preset.scores,
+        description: item.description || item.overview || `${fallbackRegion} 공공데이터 기반 후보입니다.`
+      };
+    })
+    .filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng));
+}
+
+function mergePlaces(remotePlaces) {
+  if (!remotePlaces.length) return;
+  const keys = new Set(window.PLACES.map((place) => `${place.region}:${place.name}`));
+  remotePlaces.forEach((place) => {
+    const key = `${place.region}:${place.name}`;
+    if (keys.has(key)) return;
+    keys.add(key);
+    window.PLACES.push(place);
+  });
 }
 
 function readInput() {
@@ -405,6 +541,11 @@ function scoreRequest(place, request) {
   if (/게장/.test(request) && /게장/.test(place.name + place.description)) score += 18;
   if (/야경/.test(request) && place.tags.includes("night_view")) score += 14;
   if (/카페/.test(request) && place.tags.includes("cafe")) score += 10;
+  if (/실내|전시|박물관|미술관/.test(request) && (place.indoor || place.tags.includes("culture"))) score += 14;
+  if (/바다|해변|항구|오션/.test(request) && place.tags.includes("sea")) score += 12;
+  if (/숲|정원|자연|산책/.test(request) && (place.tags.includes("forest") || place.tags.includes("nature") || place.tags.includes("walking"))) score += 10;
+  if (/시장|먹거리/.test(request) && (place.category === "시장" || place.tags.includes("market"))) score += 10;
+  if (/아이|아기|가족/.test(request) && (place.baby || place.tags.includes("family"))) score += 8;
   return score;
 }
 
@@ -965,7 +1106,20 @@ function setMessage(message) {
 }
 
 function imageForPlace(place) {
-  return PHOTO_BY_ID[place?.id] || "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80";
+  if (PHOTO_BY_ID[place?.id]) return PHOTO_BY_ID[place.id];
+  const key =
+    place?.tags?.find((tag) => FALLBACK_PHOTOS[tag]) ||
+    (place?.category === "음식점" || place?.category === "시장" ? "food" : "") ||
+    (place?.category === "카페" ? "cafe" : "") ||
+    (place?.category === "문화시설" ? "culture" : "") ||
+    (place?.category === "전망" ? "night_view" : "") ||
+    "default";
+  const photos = FALLBACK_PHOTOS[key] || FALLBACK_PHOTOS.default;
+  return photos[hashPlace(place?.name || place?.id || "default") % photos.length];
+}
+
+function hashPlace(value) {
+  return [...value].reduce((sum, char) => sum + char.charCodeAt(0), 0);
 }
 
 init();
