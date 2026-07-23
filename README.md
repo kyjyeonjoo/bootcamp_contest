@@ -18,4 +18,10 @@
 
 ## 배포
 
-`.github/workflows/pages.yml`이 포함되어 있어 GitHub Pages를 GitHub Actions 방식으로 배포할 수 있습니다.
+GitHub Pages 설정에서 배포 소스를 `gh-pages` 브랜치, 폴더는 `/root`로 선택하면 아래 주소로 열립니다.
+
+https://kyjyeonjoo.github.io/bootcamp_contest/
+
+Pages 설정 전에도 아래 미리보기 주소로 바로 확인할 수 있습니다.
+
+https://raw.githack.com/kyjyeonjoo/bootcamp_contest/main/index.html
