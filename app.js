@@ -14,6 +14,9 @@ const state = {
 };
 
 const API_CONFIG = window.TRAVEL_CONFIG || {};
+const kakaoMapState = {
+  loading: null
+};
 
 const transportPolicy = {
   car: { label: "자가용", speed: 30, buffer: 10, maxLeg: 15, places: { relaxed: 4, normal: 5, packed: 6 } },
@@ -662,6 +665,75 @@ function renderMap(days) {
     map.innerHTML = "";
     return;
   }
+
+  if (API_CONFIG.KAKAO_MAP_JS_KEY) {
+    map.innerHTML = '<div class="map-loading">Kakao 지도를 불러오는 중입니다.</div>';
+    loadKakaoMapScript()
+      .then(() => renderKakaoMap(map, items))
+      .catch(() => renderFallbackMap(map, items));
+    return;
+  }
+
+  renderFallbackMap(map, items);
+}
+
+function loadKakaoMapScript() {
+  if (window.kakao?.maps) {
+    return new Promise((resolve) => window.kakao.maps.load(resolve));
+  }
+  if (kakaoMapState.loading) return kakaoMapState.loading;
+
+  kakaoMapState.loading = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(API_CONFIG.KAKAO_MAP_JS_KEY)}&autoload=false`;
+    script.async = true;
+    script.onload = () => {
+      if (!window.kakao?.maps) {
+        reject(new Error("Kakao Maps SDK was not initialized."));
+        return;
+      }
+      window.kakao.maps.load(resolve);
+    };
+    script.onerror = () => reject(new Error("Failed to load Kakao Maps SDK."));
+    document.head.appendChild(script);
+  });
+
+  return kakaoMapState.loading;
+}
+
+function renderKakaoMap(container, items) {
+  container.innerHTML = "";
+  container.classList.add("kakao-map");
+
+  const center = new window.kakao.maps.LatLng(items[0].lat, items[0].lng);
+  const kakaoMap = new window.kakao.maps.Map(container, {
+    center,
+    level: 7
+  });
+  const bounds = new window.kakao.maps.LatLngBounds();
+
+  items.forEach((item, index) => {
+    const position = new window.kakao.maps.LatLng(item.lat, item.lng);
+    bounds.extend(position);
+    new window.kakao.maps.Marker({
+      map: kakaoMap,
+      position
+    });
+    new window.kakao.maps.CustomOverlay({
+      map: kakaoMap,
+      position,
+      yAnchor: 1.7,
+      content: `<div class="kakao-label"><strong>${index + 1}</strong><span>${item.name}</span></div>`
+    });
+  });
+
+  if (items.length > 1) {
+    kakaoMap.setBounds(bounds);
+  }
+}
+
+function renderFallbackMap(map, items) {
+  map.classList.remove("kakao-map");
   const latValues = items.map((item) => item.lat);
   const lngValues = items.map((item) => item.lng);
   const minLat = Math.min(...latValues);
