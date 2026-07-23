@@ -45,7 +45,7 @@ button {
 }
 
 .app-shell {
-  padding: clamp(16px, 3vw, 34px);
+  padding: clamp(18px, 3vw, 38px);
 }
 
 .planner {
@@ -53,7 +53,7 @@ button {
   grid-template-columns: 1fr;
   gap: 22px;
   align-items: start;
-  max-width: 1320px;
+  max-width: 1460px;
   margin: 0 auto;
 }
 
@@ -71,7 +71,8 @@ button {
 
 .form-panel {
   position: static;
-  padding: clamp(18px, 2.5vw, 28px);
+  min-height: calc(100vh - 76px);
+  padding: clamp(24px, 3vw, 42px);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(232, 249, 255, 0.96)),
     #fff;
@@ -79,11 +80,11 @@ button {
 
 .brand {
   display: grid;
-  grid-template-columns: minmax(260px, 0.8fr) minmax(280px, 1.2fr);
-  gap: 16px;
+  grid-template-columns: minmax(340px, 0.9fr) minmax(360px, 1.1fr);
+  gap: 24px;
   align-items: end;
-  margin-bottom: 18px;
-  padding-bottom: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 22px;
   border-bottom: 1px solid var(--line);
   position: relative;
 }
@@ -91,9 +92,9 @@ button {
 .brand::before {
   content: "";
   display: block;
-  width: 62px;
-  height: 6px;
-  margin-bottom: 10px;
+  width: 82px;
+  height: 8px;
+  margin-bottom: 14px;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--blue), var(--coral), var(--gold));
 }
@@ -105,7 +106,7 @@ button {
 .eyebrow {
   margin: 0 0 8px;
   color: #008bd2;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
   letter-spacing: 0;
 }
@@ -118,15 +119,15 @@ p {
 }
 
 h1 {
-  margin-bottom: 7px;
-  font-size: 30px;
+  margin-bottom: 10px;
+  font-size: clamp(40px, 4.6vw, 64px);
   line-height: 1.08;
   letter-spacing: 0;
 }
 
 h2 {
-  margin-bottom: 8px;
-  font-size: 19px;
+  margin-bottom: 10px;
+  font-size: clamp(24px, 2.2vw, 32px);
   line-height: 1.28;
   letter-spacing: 0;
 }
@@ -153,11 +154,11 @@ h3 {
 .timeline,
 .log-list {
   display: grid;
-  gap: 9px;
+  gap: 16px;
 }
 
 .trip-form {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
 }
 
@@ -184,7 +185,7 @@ h3 {
 label,
 legend {
   color: #20394f;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
 }
 
@@ -192,12 +193,13 @@ input,
 select,
 textarea {
   width: 100%;
-  margin-top: 5px;
+  margin-top: 8px;
   border: 1px solid #c9e7f3;
-  border-radius: 12px;
+  border-radius: 14px;
   background: #fbfeff;
   color: var(--ink);
-  padding: 9px 11px;
+  padding: 14px 15px;
+  font-size: 16px;
 }
 
 input:focus,
@@ -221,7 +223,7 @@ fieldset {
 .pill-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px;
 }
 
 .pill-group legend {
@@ -233,7 +235,8 @@ fieldset {
   border: 1px solid var(--line);
   border-radius: 999px;
   background: #f9fdff;
-  padding: 7px 10px;
+  padding: 11px 14px;
+  font-size: 15px;
 }
 
 .pill-group input {
@@ -242,7 +245,7 @@ fieldset {
 }
 
 .taste-box {
-  margin-top: 10px;
+  margin-top: 14px;
 }
 
 .section-title {
@@ -250,42 +253,42 @@ fieldset {
   justify-content: space-between;
   gap: 14px;
   align-items: end;
-  margin-bottom: 8px;
-  padding-top: 10px;
+  margin-bottom: 14px;
+  padding-top: 18px;
   border-top: 1px solid var(--line);
 }
 
 .taste-cards {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 16px;
 }
 
 .taste-card {
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
   background: linear-gradient(180deg, #ffffff, #f8fdff);
-  padding: 7px;
+  padding: 12px;
 }
 
 .taste-card p {
-  margin-bottom: 6px;
+  margin-bottom: 10px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 900;
 }
 
 .choice-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 12px;
 }
 
 .choice-card {
   position: relative;
-  min-height: 72px;
+  min-height: 132px;
   overflow: hidden;
   border: 1px solid #d7ebf4;
-  border-radius: 14px;
+  border-radius: 16px;
   background-color: #dff5ff;
   background-position: center;
   background-size: cover;
@@ -303,7 +306,7 @@ fieldset {
   bottom: 10px;
   z-index: 1;
   color: #fff;
-  font-size: 12px;
+  font-size: 17px;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
 }
 
@@ -315,8 +318,8 @@ fieldset {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.92);
   color: var(--blue);
-  padding: 3px 7px;
-  font-size: 11px;
+  padding: 5px 9px;
+  font-size: 12px;
   font-weight: 950;
 }
 
@@ -343,9 +346,9 @@ fieldset {
 }
 
 .food-cup-box {
-  margin-top: 16px;
+  margin-top: 22px;
   border-top: 1px solid var(--line);
-  padding-top: 12px;
+  padding-top: 18px;
 }
 
 .food-cup-box summary {
@@ -357,8 +360,8 @@ fieldset {
   border-radius: 14px;
   background: #fbfeff;
   color: var(--muted);
-  padding: 12px 13px;
-  font-size: 13px;
+  padding: 16px 18px;
+  font-size: 15px;
   font-weight: 800;
   list-style: none;
   cursor: pointer;
@@ -392,7 +395,7 @@ fieldset {
   display: block;
   margin-bottom: 2px;
   color: #073b69;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 950;
 }
 
@@ -522,16 +525,17 @@ fieldset {
 .action-row {
   display: grid;
   grid-template-columns: minmax(180px, 0.75fr) minmax(220px, 1fr);
-  max-width: 540px;
+  max-width: 640px;
   margin-left: auto;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 22px;
 }
 
 .primary,
 .ghost {
-  min-height: 48px;
-  border-radius: 14px;
+  min-height: 58px;
+  border-radius: 16px;
+  font-size: 17px;
   font-weight: 950;
 }
 
