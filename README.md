@@ -38,11 +38,14 @@ window.TRAVEL_CONFIG = {
   TOUR_API_KEY: "여기에_키",
   NAMDO_TOUR_API_KEY: "여기에_키",
   NAMDO_FOOD_API_KEY: "여기에_키",
-  KAKAO_MAP_JS_KEY: "여기에_키"
+  KAKAO_MAP_JS_KEY: "여기에_지도_JS_키",
+  KAKAO_LOGIN_ACCESS_TOKEN: "카카오_로그인_access_token이_있다면_여기에"
 };
 ```
 
 주의: GitHub Pages처럼 정적 사이트에 직접 넣은 키는 브라우저에서 보일 수 있습니다. TourAPI와 남도 API 키를 완전히 숨기려면 나중에 작은 백엔드/API 프록시가 필요합니다. Kakao Maps JavaScript 키는 도메인 제한을 걸어 사용하는 방식이 일반적입니다.
+
+카카오 로그인 access token과 Kakao Maps JavaScript 키는 용도가 다릅니다. 지도 표시에는 JavaScript 키가 필요합니다.
 
 ## 실행
 
