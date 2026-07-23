@@ -478,6 +478,7 @@ function retrieveCandidates(input, persona) {
   return window.PLACES.filter((place) => place.region === input.region)
     .filter((place) => {
       if (!input.pet) return true;
+      if (isMealPlace(place)) return true;
       return place.pet !== false;
     })
     .map((place) => {
@@ -534,10 +535,12 @@ function scoreTasteFit(place, input) {
 function scoreMetadata(place, input) {
   let score = 0;
   if (place.category === "음식점" && input.styles.includes("food")) score += 12;
+  if (place.category === "시장" && input.styles.includes("food")) score += 10;
   if (input.baby && place.baby) score += 8;
   if (input.transport === "car" && place.parking) score += 7;
   if (input.transport === "walk" && place.tags.includes("walking")) score += 6;
   if (input.pet && place.pet === true) score += 15;
+  if (input.pet && isMealPlace(place)) score -= 4;
   if (input.companion === "couple" && place.tags.includes("couple")) score += 5;
   return score;
 }
@@ -560,6 +563,7 @@ function buildEvidence(place, matchedTags, input) {
   const reasons = [];
   if (matchedTags.length) reasons.push(`취향 태그 ${matchedTags.map((tag) => labels[tag] || tag).join(", ")} 일치`);
   if (place.category === "음식점") reasons.push("식사 시간 배치에 적합");
+  if (input.pet && isMealPlace(place) && place.pet !== true) reasons.push("반려동물 동반은 매장 확인 필요");
   if (input.transport === "car" && place.parking) reasons.push("자가용 이동에 유리");
   if (place.indoor) reasons.push("우천/악천후 대체 가능");
   if (place.outdoor) reasons.push("맑은 날 경험 가치 높음");
@@ -705,7 +709,7 @@ function auditSchedule(days, weather, input) {
 
     const lunchLike = day.items.some((item) => {
       const hour = Number(item.start.split(":")[0]);
-      return item.category === "음식점" && hour >= 11 && hour <= 14;
+      return isMealPlace(item) && hour >= 11 && hour <= 14;
     });
     if (!lunchLike) issues.push({ type: "시간", message: `${day.day}일차 식사 시간이 점심 권장 시간대에서 벗어났습니다.` });
     else passed.push(`${day.day}일차 점심 시간대 배치 확인`);
@@ -729,7 +733,7 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
     items = items.map((item) => {
       const hour = Number(item.start.split(":")[0]);
       const weatherBad = (weather === "rain" && item.outdoor) || (weather === "extreme" && item.outdoor && hour >= 12 && hour <= 16);
-      const companionBad = (input.baby && item.baby === false) || (input.pet && item.pet !== true);
+      const companionBad = (input.baby && item.baby === false) || (input.pet && item.pet !== true && !isMealPlace(item));
       if (!weatherBad && !companionBad) return item;
       const replacement = ranked.find((place) => {
         if (used.has(place.id)) return false;
@@ -737,7 +741,7 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
         if (weather === "rain" && !place.indoor) return false;
         if (weather === "extreme" && hour >= 12 && hour <= 16 && !place.indoor) return false;
         if (input.baby && place.baby === false) return false;
-        if (input.pet && place.pet !== true) return false;
+        if (input.pet && place.pet !== true && !isMealPlace(place)) return false;
         return true;
       });
       if (!replacement) return item;
@@ -746,8 +750,8 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
       return replacement;
     });
 
-    if (!items.some((item) => item.category === "음식점")) {
-      const meal = ranked.find((place) => place.category === "음식점" && !used.has(place.id));
+    if (!items.some((item) => isMealPlace(item))) {
+      const meal = ranked.find((place) => isMealPlace(place) && !used.has(place.id));
       if (meal) {
         items.splice(1, 0, meal);
         used.add(meal.id);
@@ -790,9 +794,13 @@ function createFlexibleMeal(region, day, items) {
   };
 }
 
+function isMealPlace(place) {
+  return place?.category === "음식점" || place?.category === "시장";
+}
+
 function improveRoute(items, input) {
   if (items.length <= 2) return items;
-  const food = items.find((item) => item.category === "음식점");
+  const food = items.find((item) => isMealPlace(item));
   const night = items.find((item) => item.slots.includes("night") || item.slots.includes("sunset"));
   const rest = items.filter((item) => item !== food && item !== night);
   const ordered = [];
@@ -810,7 +818,7 @@ function improveRoute(items, input) {
 function reasonFor(place, weather) {
   if (weather === "rain" && place.indoor) return "우천 플랜에서 실내 적합도가 높아 선택되었습니다.";
   if (weather === "extreme" && place.indoor) return "악천후 시간대 대체 가능한 실내 장소입니다.";
-  if (place.category === "음식점") return "여행일당 최소 1회 식사 조건과 지역 먹거리 선호를 반영했습니다.";
+  if (isMealPlace(place)) return "여행일당 최소 1회 식사 조건과 지역 먹거리 선호를 반영했습니다.";
   if (place.slots.includes("night") || place.slots.includes("sunset")) return "일몰·야경 선호를 반영해 후반 시간대에 배치했습니다.";
   return "페르소나 키워드와 장소 태그의 유사도가 높아 선택되었습니다.";
 }
