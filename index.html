@@ -6,189 +6,240 @@
     <title>광주·전남 AI 여행 플래너</title>
     <meta
       name="description"
-      content="취향 선택과 여행 조건을 바탕으로 광주·전남의 날씨별 실행 가능한 여행 일정을 추천합니다."
+      content="RAG 후보 검색과 에이전틱 시뮬레이션을 보여주는 광주·전남 여행 일정 자동 플래너 MVP"
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="app-header">
+    <header class="topbar">
       <div>
-        <p class="eyebrow">RAG + 시뮬레이션 MVP</p>
-        <h1>광주·전남 AI 여행 플래너</h1>
+        <p class="eyebrow">Gwangju · Jeonnam Travel Agent</p>
+        <h1>AI가 여행지를 찾고, 일정을 짜고, 스스로 검증합니다.</h1>
         <p class="lead">
-          여행 조건과 취향 선택을 분석해 맑음, 비, 폭염·악천후 3가지 실행 가능한 코스를 만듭니다.
+          광주·전남 관광/먹거리 데이터를 기반으로 취향 페르소나를 만들고, RAG 후보 검색과
+          날씨·거리·시간 시뮬레이션을 거쳐 실행 가능한 여행 코스를 생성하는 발표용 MVP입니다.
         </p>
       </div>
-      <div class="status-panel" aria-label="생성 단계">
-        <span data-status="input" class="active">입력</span>
-        <span data-status="taste">취향</span>
-        <span data-status="search">검색</span>
-        <span data-status="simulate">검증</span>
-        <span data-status="done">완료</span>
-      </div>
+      <aside class="demo-card">
+        <strong>오늘 데모 포인트</strong>
+        <span>RAG 검색 근거</span>
+        <span>초기 일정의 실패 원인</span>
+        <span>수정 Agent의 조정 로그</span>
+        <span>날씨별 3개 최종 플랜</span>
+      </aside>
     </header>
 
-    <main class="layout">
-      <section class="planner-panel" aria-labelledby="input-title">
-        <div class="section-title">
-          <p class="eyebrow">STEP 1</p>
-          <h2 id="input-title">여행 기본 정보</h2>
-        </div>
+    <main>
+      <section class="workspace">
+        <aside class="control-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">STEP 1</p>
+            <h2>여행 조건 입력</h2>
+          </div>
 
-        <form id="trip-form" class="trip-form">
-          <label>
-            여행 지역
-            <select name="region">
-              <option>여수</option>
-              <option>광주</option>
-              <option>담양</option>
-              <option>순천</option>
-              <option>목포</option>
-            </select>
-          </label>
+          <form id="trip-form" class="trip-form">
+            <label>
+              여행 지역
+              <select name="region">
+                <option>여수</option>
+                <option>광주</option>
+                <option>담양</option>
+                <option>순천</option>
+                <option>목포</option>
+              </select>
+            </label>
 
-          <label>
-            시작일
-            <input name="startDate" type="date" required />
-          </label>
-
-          <label>
-            종료일
-            <input name="endDate" type="date" required />
-          </label>
-
-          <label>
-            인원
-            <input name="people" type="number" min="1" max="10" value="2" />
-          </label>
-
-          <label>
-            동반 유형
-            <select name="companion">
-              <option value="couple">커플</option>
-              <option value="solo">혼자</option>
-              <option value="friends">친구</option>
-              <option value="family">가족</option>
-              <option value="parents">부모님</option>
-            </select>
-          </label>
-
-          <label>
-            주 교통수단
-            <select name="transport">
-              <option value="car">자가용</option>
-              <option value="transit">대중교통</option>
-              <option value="walk">도보 중심</option>
-              <option value="taxi">택시·혼합</option>
-            </select>
-          </label>
-
-          <label>
-            일정 강도
-            <select name="pace">
-              <option value="relaxed">느슨하게</option>
-              <option value="normal">보통</option>
-              <option value="packed">빡빡하게</option>
-            </select>
-          </label>
-
-          <fieldset class="checkbox-row">
-            <legend>특수 조건</legend>
-            <label><input name="baby" type="checkbox" /> 아기 동반</label>
-            <label><input name="pet" type="checkbox" /> 반려동물 동반</label>
-          </fieldset>
-
-          <fieldset class="chip-field">
-            <legend>여행 스타일</legend>
-            <label><input type="checkbox" name="styles" value="food" checked /> 먹거리</label>
-            <label><input type="checkbox" name="styles" value="mood" checked /> 분위기</label>
-            <label><input type="checkbox" name="styles" value="healing" /> 힐링</label>
-            <label><input type="checkbox" name="styles" value="nature" checked /> 자연</label>
-            <label><input type="checkbox" name="styles" value="activity" /> 체험</label>
-            <label><input type="checkbox" name="styles" value="culture" /> 문화</label>
-          </fieldset>
-
-          <label class="full">
-            추가 요청
-            <textarea
-              name="request"
-              maxlength="200"
-              rows="3"
-              placeholder="예: 게장 식사를 포함하고 싶음, 야경을 꼭 보고 싶음"
-            ></textarea>
-          </label>
-        </form>
-      </section>
-
-      <section class="taste-panel" aria-labelledby="taste-title">
-        <div class="section-title">
-          <p class="eyebrow">STEP 2</p>
-          <h2 id="taste-title">취향 선택</h2>
-        </div>
-        <div id="taste-cards" class="taste-cards"></div>
-        <div class="button-row">
-          <button id="reset-taste" type="button" class="secondary">선택 초기화</button>
-          <button id="generate" type="button" class="primary">일정 생성</button>
-        </div>
-        <p id="form-message" class="form-message" role="status"></p>
-      </section>
-
-      <section class="result-panel" aria-live="polite">
-        <div class="empty-state" id="empty-state">
-          <p class="eyebrow">STEP 3</p>
-          <h2>조건을 입력하고 일정을 생성해보세요</h2>
-          <p>
-            로컬 샘플 데이터로 동작하므로 API 키가 없어도 발표 데모를 바로 진행할 수 있습니다.
-          </p>
-        </div>
-
-        <div id="results" class="results hidden">
-          <div class="persona-card">
-            <div>
-              <p class="eyebrow">PERSONA</p>
-              <h2 id="persona"></h2>
-              <p id="keywords" class="keyword-line"></p>
+            <div class="field-pair">
+              <label>
+                시작일
+                <input name="startDate" type="date" required />
+              </label>
+              <label>
+                종료일
+                <input name="endDate" type="date" required />
+              </label>
             </div>
-            <div class="metric-grid">
-              <span><strong id="candidate-count">0</strong>후보</span>
-              <span><strong id="revision-count">0</strong>수정</span>
-              <span><strong id="day-count">1</strong>일정일</span>
+
+            <div class="field-pair">
+              <label>
+                인원
+                <input name="people" type="number" min="1" max="10" value="2" />
+              </label>
+              <label>
+                일정 강도
+                <select name="pace">
+                  <option value="relaxed">느슨하게</option>
+                  <option value="normal">보통</option>
+                  <option value="packed">빡빡하게</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              주 교통수단
+              <select name="transport">
+                <option value="car">자가용</option>
+                <option value="transit">대중교통</option>
+                <option value="walk">도보 중심</option>
+                <option value="taxi">택시·혼합</option>
+              </select>
+            </label>
+
+            <label>
+              동반 유형
+              <select name="companion">
+                <option value="couple">커플</option>
+                <option value="solo">혼자</option>
+                <option value="friends">친구</option>
+                <option value="family">가족</option>
+                <option value="parents">부모님</option>
+              </select>
+            </label>
+
+            <fieldset class="pill-group">
+              <legend>해당 사항</legend>
+              <label><input name="baby" type="checkbox" /> 아기 동반</label>
+              <label><input name="pet" type="checkbox" /> 반려동물 동반</label>
+            </fieldset>
+
+            <fieldset class="pill-group">
+              <legend>원하는 여행 스타일</legend>
+              <label><input type="checkbox" name="styles" value="food" checked /> 먹거리</label>
+              <label><input type="checkbox" name="styles" value="mood" checked /> 분위기</label>
+              <label><input type="checkbox" name="styles" value="healing" /> 힐링</label>
+              <label><input type="checkbox" name="styles" value="nature" checked /> 자연</label>
+              <label><input type="checkbox" name="styles" value="activity" /> 체험</label>
+              <label><input type="checkbox" name="styles" value="culture" /> 문화</label>
+            </fieldset>
+
+            <label>
+              추가 요청
+              <textarea
+                name="request"
+                maxlength="200"
+                rows="3"
+                placeholder="예: 게장 식사를 포함하고 싶음, 야경을 꼭 보고 싶음"
+              ></textarea>
+            </label>
+          </form>
+
+          <div class="panel-heading taste-title">
+            <p class="eyebrow">STEP 2</p>
+            <h2>취향 토너먼트</h2>
+          </div>
+          <div id="taste-cards" class="taste-cards"></div>
+
+          <div class="action-row">
+            <button id="demo-fill" type="button" class="ghost">여수 데모값</button>
+            <button id="generate" type="button" class="primary">AI 일정 생성</button>
+          </div>
+          <p id="form-message" class="form-message" role="status"></p>
+        </aside>
+
+        <section class="stage">
+          <div id="empty-state" class="empty-state">
+            <p class="eyebrow">READY</p>
+            <h2>생성 버튼을 누르면 AI 파이프라인이 순서대로 열립니다.</h2>
+            <p>
+              이 화면은 단순 추천 목록이 아니라, 왜 이 장소를 골랐고 어떤 문제를 어떻게 수정했는지
+              보여주는 데 초점을 맞췄습니다.
+            </p>
+            <div class="pipeline-preview" aria-label="서비스 흐름">
+              <span>입력 JSON</span>
+              <span>페르소나</span>
+              <span>RAG 후보</span>
+              <span>초기 일정</span>
+              <span>검증/수정</span>
+              <span>최종 플랜</span>
             </div>
           </div>
 
-          <div class="plan-tabs" role="tablist" aria-label="날씨별 플랜">
-            <button class="active" data-plan="clear" type="button">맑음</button>
-            <button data-plan="rain" type="button">비</button>
-            <button data-plan="extreme" type="button">폭염·악천후</button>
-          </div>
+          <div id="results" class="results hidden">
+            <section class="agent-strip" aria-label="생성 진행 상태">
+              <article data-agent="input"><strong>Input Agent</strong><span>조건 정규화</span></article>
+              <article data-agent="persona"><strong>Persona Agent</strong><span>취향 키워드 생성</span></article>
+              <article data-agent="rag"><strong>RAG Retriever</strong><span>지역·조건 후보 검색</span></article>
+              <article data-agent="schedule"><strong>Schedule Agent</strong><span>초기 일정 작성</span></article>
+              <article data-agent="simulation"><strong>Simulation Agent</strong><span>거리·날씨 검증</span></article>
+              <article data-agent="revision"><strong>Revision Agent</strong><span>문제 구간 수정</span></article>
+            </section>
 
-          <div class="plan-summary">
-            <h3 id="plan-title"></h3>
-            <p id="plan-description"></p>
-          </div>
+            <section class="summary-grid">
+              <article class="persona-card">
+                <p class="eyebrow">PERSONA</p>
+                <h2 id="persona"></h2>
+                <p id="keywords"></p>
+              </article>
+              <article class="json-card">
+                <p class="eyebrow">USER INPUT JSON</p>
+                <pre id="input-json"></pre>
+              </article>
+            </section>
 
-          <div class="result-grid">
-            <div>
-              <h3>일정 타임라인</h3>
-              <div id="timeline" class="timeline"></div>
-            </div>
-            <div>
-              <h3>지도 미리보기</h3>
-              <div id="map" class="map" aria-label="장소 위치 지도"></div>
-              <p class="note">이동 시간은 좌표 기반 추정치이며 실제 교통 상황과 다를 수 있습니다.</p>
-            </div>
-          </div>
+            <section class="evidence-section">
+              <div class="section-row">
+                <div>
+                  <p class="eyebrow">RAG RESULT</p>
+                  <h2>검색된 후보 장소와 추천 근거</h2>
+                </div>
+                <div class="metric-row">
+                  <span><strong id="candidate-count">0</strong>후보</span>
+                  <span><strong id="avg-score">0</strong>평균점수</span>
+                  <span><strong id="days-count">1</strong>일</span>
+                </div>
+              </div>
+              <div id="candidate-list" class="candidate-list"></div>
+            </section>
 
-          <div class="report">
-            <h3>시뮬레이션 보고서</h3>
-            <div id="report-list" class="report-list"></div>
+            <section class="plan-workbench">
+              <div class="tabs" role="tablist" aria-label="날씨별 플랜">
+                <button class="active" data-plan="clear" type="button">맑은 날</button>
+                <button data-plan="rain" type="button">비 오는 날</button>
+                <button data-plan="extreme" type="button">폭염·폭설</button>
+              </div>
+
+              <div class="plan-header">
+                <div>
+                  <p class="eyebrow">FINAL PLAN</p>
+                  <h2 id="plan-title"></h2>
+                  <p id="plan-description"></p>
+                </div>
+                <div class="plan-score">
+                  <strong id="plan-score">0</strong>
+                  <span>실행가능성</span>
+                </div>
+              </div>
+
+              <div class="comparison-grid">
+                <article>
+                  <h3>초기 일정 초안</h3>
+                  <div id="draft-timeline" class="timeline compact"></div>
+                </article>
+                <article>
+                  <h3>검증 후 최종 일정</h3>
+                  <div id="final-timeline" class="timeline"></div>
+                </article>
+              </div>
+
+              <div class="simulation-grid">
+                <article>
+                  <h3>시뮬레이션 로그</h3>
+                  <div id="simulation-log" class="log-list"></div>
+                </article>
+                <article>
+                  <h3>좌표 기반 경로 미리보기</h3>
+                  <div id="map" class="map"></div>
+                  <p class="note">카카오맵 연동 전 데모용 좌표 지도입니다. 실제 서비스에서는 Kakao Maps API로 교체합니다.</p>
+                </article>
+              </div>
+            </section>
           </div>
-        </div>
+        </section>
       </section>
     </main>
 
     <footer>
-      추천 결과는 참고용입니다. 영업시간, 입장 정책, 반려동물 동반 가능 여부는 방문 전 다시 확인해주세요.
+      추천 결과는 참고용입니다. 영업시간, 입장 정책, 반려동물 동반 가능 여부는 방문 전 다시 확인해야 합니다.
     </footer>
 
     <script src="./data/places.js"></script>
