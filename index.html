@@ -58,26 +58,36 @@
               </label>
             </div>
 
-            <label>
-              이동 방식
-              <select name="transport">
-                <option value="car">자가용</option>
-                <option value="transit">대중교통</option>
-                <option value="walk">도보 중심</option>
-                <option value="taxi">택시·혼합</option>
-              </select>
-            </label>
+            <div class="field-pair">
+              <label>
+                이동 방식
+                <select name="transport">
+                  <option value="car">자가용</option>
+                  <option value="transit">대중교통</option>
+                  <option value="walk">도보 중심</option>
+                  <option value="taxi">택시·혼합</option>
+                </select>
+              </label>
 
-            <label>
-              누구와 가나요?
-              <select name="companion">
-                <option value="couple">커플</option>
-                <option value="solo">혼자</option>
-                <option value="friends">친구</option>
-                <option value="family">가족</option>
-                <option value="parents">부모님</option>
-              </select>
-            </label>
+              <label>
+                누구와 가나요?
+                <select name="companion">
+                  <option value="couple">커플</option>
+                  <option value="solo">혼자</option>
+                  <option value="friends">친구</option>
+                  <option value="family">가족</option>
+                  <option value="parents">부모님</option>
+                </select>
+              </label>
+            </div>
+
+            <section class="taste-box">
+              <div class="section-title">
+                <p class="eyebrow">취향 고르기</p>
+                <h2>둘 중 더 끌리는 쪽을 골라주세요</h2>
+              </div>
+              <div id="taste-cards" class="taste-cards"></div>
+            </section>
 
             <fieldset class="pill-group">
               <legend>챙겨야 할 조건</legend>
@@ -100,27 +110,21 @@
               <textarea
                 name="request"
                 maxlength="200"
-                rows="3"
+                rows="2"
                 placeholder="예: 게장 식사, 야경, 걷기 적은 코스"
               ></textarea>
             </label>
           </form>
 
-          <section class="taste-box">
-            <div class="section-title">
-              <p class="eyebrow">취향 고르기</p>
-              <h2>둘 중 더 끌리는 쪽을 골라주세요</h2>
-            </div>
-            <div id="taste-cards" class="taste-cards"></div>
-          </section>
-
-          <section class="food-cup-box">
-            <div class="section-title">
-              <p class="eyebrow">음식 월드컵 · 선택</p>
-              <h2>식당 추천에 반영할 음식 취향을 골라보세요</h2>
-            </div>
+          <details class="food-cup-box">
+            <summary>
+              <span>
+                <b>음식 월드컵</b>
+                식당 추천까지 더 맞추고 싶을 때만 선택
+              </span>
+            </summary>
             <div id="food-cup" class="food-cup"></div>
-          </section>
+          </details>
 
           <div class="action-row">
             <button id="demo-fill" type="button" class="ghost">여수 예시 채우기</button>
@@ -266,6 +270,6 @@
     <script src="./config.public.js"></script>
     <script src="./config.local.js"></script>
     <script src="./data/places.js"></script>
-    <script src="./app.js?v=20260724-food-rank-cup"></script>
+    <script src="./app.js?v=20260724-compact-input"></script>
   </body>
 </html>
