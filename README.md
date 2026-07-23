@@ -47,6 +47,8 @@ window.TRAVEL_CONFIG = {
 
 카카오 로그인 access token과 Kakao Maps JavaScript 키는 용도가 다릅니다. 지도 표시에는 JavaScript 키가 필요합니다.
 
+GitHub Pages에서는 `config.public.js`에 있는 Kakao Maps JavaScript 키만 사용합니다. 이 키는 브라우저에 노출되므로 Kakao Developers에서 Web 도메인을 `https://kyjyeonjoo.github.io`로 제한해 사용합니다. TourAPI, 남도 API, 카카오 로그인 토큰은 `config.local.js`에만 보관하고 GitHub에 올리지 않습니다.
+
 ## 실행
 
 브라우저에서 `index.html`을 열면 바로 실행됩니다.
