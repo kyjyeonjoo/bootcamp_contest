@@ -557,7 +557,7 @@ fieldset {
 }
 
 .result-panel {
-  min-height: 460px;
+  min-height: calc(100vh - 68px);
   scroll-margin-top: 20px;
   padding: clamp(18px, 2.5vw, 28px);
 }
@@ -565,7 +565,7 @@ fieldset {
 .empty-state {
   display: grid;
   align-content: center;
-  min-height: 420px;
+  min-height: calc(100vh - 124px);
   text-align: center;
 }
 
@@ -595,6 +595,17 @@ fieldset {
 
 .hidden {
   display: none;
+}
+
+.result-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.result-toolbar .ghost {
+  min-height: 42px;
+  padding: 0 16px;
 }
 
 .hero-card {

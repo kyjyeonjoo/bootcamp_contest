@@ -290,6 +290,7 @@ function init() {
   renderFoodWorldcup();
   document.querySelector("#generate").addEventListener("click", generate);
   document.querySelector("#demo-fill").addEventListener("click", fillDemo);
+  document.querySelector("#edit-input").addEventListener("click", showInputPanel);
   document.querySelectorAll(".tabs button").forEach((button) => {
     button.addEventListener("click", () => {
       state.activePlan = button.dataset.plan;
@@ -507,6 +508,7 @@ async function generate() {
   state.activePlan = "clear";
   state.selectedPlaceId = candidates[0]?.id || null;
   renderResults();
+  showResultPanel();
   setMessage("");
 }
 
@@ -1148,7 +1150,18 @@ function renderResults() {
   renderAgentSimulation();
   renderCandidates(candidates);
   renderPlan();
-  document.querySelector(".result-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function showResultPanel() {
+  document.querySelector(".form-panel")?.classList.add("hidden");
+  document.querySelector(".result-panel")?.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function showInputPanel() {
+  document.querySelector(".result-panel")?.classList.add("hidden");
+  document.querySelector(".form-panel")?.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function renderAgentSimulation() {
