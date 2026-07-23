@@ -442,15 +442,15 @@ function createWeatherPlan(weather, input, persona, candidates) {
 
 function buildDraftSchedule(weather, input, candidates) {
   const days = getDays(input);
-  const perDay = transportPolicy[input.transport].places[input.pace];
+  const perDayLimit = transportPolicy[input.transport].places[input.pace];
   const ranked = rankForWeather(candidates, weather, false);
   const used = new Set();
   const result = [];
+  const placesPerDay = Math.max(1, Math.min(perDayLimit, Math.ceil(ranked.length / days)));
 
   for (let day = 1; day <= days; day += 1) {
     const freshPool = ranked.filter((place) => !used.has(place.id));
-    const pool = freshPool.length >= perDay ? freshPool : ranked;
-    const selected = naivePick(pool, perDay, weather);
+    const selected = naivePick(freshPool, Math.min(placesPerDay, freshPool.length), weather);
     selected.forEach((place) => used.add(place.id));
     result.push({
       day,
@@ -571,6 +571,7 @@ function auditSchedule(days, weather, input) {
 function reviseSchedule(draft, audit, weather, input, candidates) {
   const actions = [];
   const ranked = rankForWeather(candidates, weather, true);
+  const perDayLimit = transportPolicy[input.transport].places[input.pace];
   const used = new Set();
 
   const revisedDays = draft.map((day) => {
@@ -601,16 +602,44 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
       const meal = ranked.find((place) => place.category === "음식점" && !used.has(place.id));
       if (meal) {
         items.splice(1, 0, meal);
+        used.add(meal.id);
         actions.push(`${day.day}일차에 식사 후보 ${meal.name}을(를) 추가했습니다.`);
+      } else {
+        const flexibleMeal = createFlexibleMeal(input.region, day.day, items);
+        items.splice(Math.min(1, items.length), 0, flexibleMeal);
+        actions.push(`${day.day}일차 식사는 중복 장소 대신 근처 로컬 맛집 탐색 슬롯으로 비워두었습니다.`);
       }
     }
 
     items = improveRoute(items, input);
-    return { day: day.day, items: assignTimes(items.slice(0, transportPolicy[input.transport].places[input.pace]), weather, input, true) };
+    return { day: day.day, items: assignTimes(items.slice(0, perDayLimit), weather, input, true) };
   });
 
   if (actions.length === 0 && audit.issues.length === 0) actions.push("초기 일정이 주요 검증 기준을 통과해 시간대만 정돈했습니다.");
   return Object.assign(revisedDays, { actions });
+}
+
+function createFlexibleMeal(region, day, items) {
+  const anchor = items[0] || window.PLACES.find((place) => place.region === region);
+  return {
+    id: `FLEX_MEAL_${region}_${day}`,
+    name: `${region} ${day}일차 로컬 맛집 탐색`,
+    region,
+    category: "음식점",
+    lat: anchor?.lat || 35.15,
+    lng: anchor?.lng || 126.92,
+    duration: 70,
+    indoor: true,
+    outdoor: false,
+    parking: null,
+    baby: true,
+    pet: null,
+    slots: ["lunch", "dinner"],
+    tags: ["food", "local_food", "mood"],
+    scores: { clear: 4, rain: 4, extreme: 4 },
+    description: "같은 식당을 반복하지 않도록 남겨둔 식사 탐색 시간입니다. 지도에서 현재 동선 근처 맛집을 확인해 고르면 됩니다.",
+    evidence: ["중복 일정 방지", "식사 시간 확보", "지도 검색으로 실제 후보 확인"]
+  };
 }
 
 function improveRoute(items, input) {
