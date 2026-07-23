@@ -1,0 +1,10 @@
+# Local API keys and environment files
+config.local.js
+.env
+.env.*
+*.key
+secrets.*
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

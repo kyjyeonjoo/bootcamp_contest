@@ -13,6 +13,8 @@ const state = {
   result: null
 };
 
+const API_CONFIG = window.TRAVEL_CONFIG || {};
+
 const transportPolicy = {
   car: { label: "자가용", speed: 30, buffer: 10, maxLeg: 15, places: { relaxed: 4, normal: 5, packed: 6 } },
   transit: { label: "대중교통", speed: 18, buffer: 15, maxLeg: 5, places: { relaxed: 3, normal: 4, packed: 5 } },
