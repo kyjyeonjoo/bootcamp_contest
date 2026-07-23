@@ -486,18 +486,20 @@ function retrieveCandidates(input, persona) {
       const semantic = matchedTags.length * 10;
       const tasteFit = scoreTasteFit(place, input);
       const metadata = scoreMetadata(place, input);
-      const textBoost = scoreRequest(place, input.request);
-      const score = Math.round(30 + semantic + tasteFit + metadata + textBoost);
+      const requestMatches = getRequestMatches(place, input.request);
+      const textBoost = scoreRequest(place, input.request, requestMatches);
+      const score = Math.round(28 + semantic + tasteFit + metadata + textBoost);
       return {
         ...place,
         rankScore: score,
         ragScore: Math.max(0, Math.min(score, 98)),
         tasteFit,
         matchedTags,
-        evidence: buildEvidence(place, matchedTags, input)
+        requestMatches,
+        evidence: buildEvidence(place, matchedTags, input, requestMatches)
       };
     })
-    .sort((a, b) => b.rankScore - a.rankScore || b.tasteFit - a.tasteFit);
+    .sort((a, b) => b.requestMatches.length - a.requestMatches.length || b.rankScore - a.rankScore || b.tasteFit - a.tasteFit);
 }
 
 function scoreTasteFit(place, input) {
@@ -545,9 +547,10 @@ function scoreMetadata(place, input) {
   return score;
 }
 
-function scoreRequest(place, request) {
+function scoreRequest(place, request, requestMatches = getRequestMatches(place, request)) {
   if (!request) return 0;
   let score = 0;
+  score += requestMatches.length * 42;
   if (/게장/.test(request) && /게장/.test(place.name + place.description)) score += 18;
   if (/야경/.test(request) && place.tags.includes("night_view")) score += 14;
   if (/카페/.test(request) && place.tags.includes("cafe")) score += 10;
@@ -559,8 +562,48 @@ function scoreRequest(place, request) {
   return score;
 }
 
-function buildEvidence(place, matchedTags, input) {
+function getRequestMatches(place, request) {
+  if (!request) return [];
+  const text = `${place.name} ${place.category} ${place.description || ""} ${place.address || ""}`;
+  const compactText = text.replace(/\s+/g, "");
+  const matches = [];
+  const rules = [
+    { label: "게장", request: /게장/, place: /게장/ },
+    { label: "민어·해산물", request: /민어|회|해산물|수산/, place: /민어|회|수산|해산물|항|포구|시장|어시장|바다/ },
+    { label: "야경", request: /야경|밤|일몰|노을/, place: /야경|일몰|노을|전망|대교|타워|케이블카|밤바다/ },
+    { label: "카페", request: /카페|커피|디저트|브런치/, place: /카페|커피|디저트|브런치|베이커리/ },
+    { label: "바다", request: /바다|해변|해상|섬|오션|항구/, place: /바다|해변|해수욕장|해상|섬|항|포구|등대|대교/ },
+    { label: "숲·정원", request: /숲|정원|자연|산책|힐링|공원/, place: /숲|정원|수목원|공원|산책|산|원림|생태/ },
+    { label: "실내·전시", request: /실내|전시|박물관|미술관|문화|기념관/, place: /박물관|미술관|전시|문화|기념관|체험관/ },
+    { label: "시장·먹거리", request: /시장|먹거리|맛집|식사|음식|로컬|전통/, place: /시장|거리|골목|식당|회관|밥상|국밥|냉면|게장|카페/ },
+    { label: "아이·가족", request: /아이|아기|가족|부모님/, place: /공원|체험|박물관|미술관|정원|아쿠아|키즈/ }
+  ];
+
+  rules.forEach((rule) => {
+    if (rule.request.test(request) && rule.place.test(text)) matches.push(rule.label);
+  });
+
+  extractRequestKeywords(request).forEach((keyword) => {
+    const compactKeyword = keyword.replace(/\s+/g, "");
+    if (text.includes(keyword) || compactText.includes(compactKeyword)) matches.push(keyword);
+  });
+
+  return [...new Set(matches)].slice(0, 4);
+}
+
+function extractRequestKeywords(request) {
+  return String(request || "")
+    .replace(/[^\w가-힣\s]/g, " ")
+    .split(/\s+/)
+    .map((word) =>
+      word.replace(/(이랑|랑|하고|와|과|으로|로|에서|에는|에게|한테|은|는|이|가|을|를|도|만|좀|꼭|포함|넣어줘|넣어|하고|싶음|싶어|주세요)$/g, "")
+    )
+    .filter((word) => word.length >= 2 && !["여행", "일정", "코스", "장소", "추천", "반영"].includes(word));
+}
+
+function buildEvidence(place, matchedTags, input, requestMatches = []) {
   const reasons = [];
+  if (requestMatches.length) reasons.push(`요청 반영: ${requestMatches.join(", ")}`);
   if (matchedTags.length) reasons.push(`취향 태그 ${matchedTags.map((tag) => labels[tag] || tag).join(", ")} 일치`);
   if (place.category === "음식점") reasons.push("식사 시간 배치에 적합");
   if (input.pet && isMealPlace(place) && place.pet !== true) reasons.push("반려동물 동반은 매장 확인 필요");
@@ -599,10 +642,16 @@ function buildDraftSchedule(weather, input, candidates) {
   const used = new Set();
   const result = [];
   const placesPerDay = Math.max(1, Math.min(perDayLimit, Math.ceil(ranked.length / days)));
+  const requiredPlaces = selectRequiredPlaces(ranked, input).slice(0, days);
 
   for (let day = 1; day <= days; day += 1) {
     const freshPool = ranked.filter((place) => !used.has(place.id));
     const selected = naivePick(freshPool, Math.min(placesPerDay, freshPool.length), weather);
+    const requestPick = requiredPlaces[day - 1] || ranked.find((place) => !used.has(place.id) && place.requestMatches?.length);
+    if (requestPick && !selected.some((place) => place.id === requestPick.id)) {
+      selected.splice(Math.min(1, selected.length), 0, requestPick);
+      if (selected.length > perDayLimit) selected.pop();
+    }
     selected.forEach((place) => used.add(place.id));
     result.push({
       day,
@@ -696,7 +745,7 @@ function auditSchedule(days, weather, input) {
       if (input.baby && item.baby === false) {
         issues.push({ type: "동반", message: `${item.name}: 아기 동반 편의가 낮은 장소입니다.` });
       }
-      if (input.pet && item.pet !== true) {
+      if (input.pet && item.pet !== true && !isMealPlace(item)) {
         issues.push({ type: "동반", message: `${item.name}: 반려동물 동반 여부 재확인이 필요합니다.` });
       }
       if (index > 0 && item.distance > transportPolicy[input.transport].maxLeg) {
@@ -725,6 +774,7 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
   const ranked = rankForWeather(candidates, weather, true);
   const perDayLimit = transportPolicy[input.transport].places[input.pace];
   const used = new Set();
+  const requiredPlaces = selectRequiredPlaces(ranked, input).slice(0, getDays(input));
 
   const revisedDays = draft.map((day) => {
     let items = day.items.map((item) => ({ ...item }));
@@ -763,12 +813,40 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
       }
     }
 
+    const required = requiredPlaces[day.day - 1];
+    if (required && !items.some((item) => item.id === required.id)) {
+      const replaceIndex = Math.max(0, items.findIndex((item) => !isMealPlace(item) && !(item.slots.includes("night") || item.slots.includes("sunset"))));
+      const index = replaceIndex === -1 ? Math.max(0, items.length - 1) : replaceIndex;
+      const removed = items[index];
+      items[index] = required;
+      used.add(required.id);
+      actions.push(`${day.day}일차에 꼭 반영 요청과 맞는 ${required.name}을(를) 배치했습니다.${removed ? ` (${removed.name} 대체)` : ""}`);
+    }
+
     items = improveRoute(items, input);
     return { day: day.day, items: assignTimes(items.slice(0, perDayLimit), weather, input, true) };
   });
 
   if (actions.length === 0 && audit.issues.length === 0) actions.push("초기 일정이 주요 검증 기준을 통과해 시간대만 정돈했습니다.");
   return Object.assign(revisedDays, { actions });
+}
+
+function selectRequiredPlaces(ranked, input) {
+  if (!input.request) return [];
+  const selected = [];
+  const covered = new Set();
+  ranked
+    .filter((place) => place.requestMatches?.length)
+    .forEach((place) => {
+      const newMatches = place.requestMatches.filter((match) => !covered.has(match));
+      if (!newMatches.length) return;
+      selected.push(place);
+      newMatches.forEach((match) => covered.add(match));
+    });
+  ranked
+    .filter((place) => place.requestMatches?.length && !selected.some((item) => item.id === place.id))
+    .forEach((place) => selected.push(place));
+  return selected;
 }
 
 function createFlexibleMeal(region, day, items) {
