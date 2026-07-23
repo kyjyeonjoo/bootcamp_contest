@@ -63,6 +63,39 @@ const weatherInfo = {
   }
 };
 
+const PHOTO_BY_ID = {
+  YS_01: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Odongdo%20%28view%20from%20west%20breakwater%29%20in%202017.jpg?width=900",
+  YS_02: "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=900&q=80",
+  YS_03: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Yeosu%20Maritime%20Cable%20Car%20View.jpg?width=900",
+  YS_04: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Yeosu%20Lights.jpg?width=900",
+  YS_05: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
+  YS_06: "https://commons.wikimedia.org/wiki/Special:Redirect/file/Yeosu%20the%20Beautiful.jpg?width=900",
+  GJ_01: "https://images.unsplash.com/photo-1577720643272-265f09367456?auto=format&fit=crop&w=900&q=80",
+  GJ_02: "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=900&q=80",
+  GJ_03: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=80",
+  GJ_04: "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=900&q=80",
+  DY_01: "https://images.unsplash.com/photo-1541959833400-049d37f98ccd?auto=format&fit=crop&w=900&q=80",
+  DY_02: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+  DY_03: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=900&q=80",
+  DY_04: "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=80",
+  SC_01: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+  SC_02: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+  SC_03: "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=900&q=80",
+  SC_04: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=900&q=80",
+  MP_01: "https://images.unsplash.com/photo-1566127444979-b3d2b654e3d7?auto=format&fit=crop&w=900&q=80",
+  MP_02: "https://commons.wikimedia.org/wiki/Special:Redirect/file/20240225%20View%20of%20Yudal%20Mountain%2C%20Korea.jpg?width=900",
+  MP_03: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
+  MP_04: "https://images.unsplash.com/photo-1534939561126-855b8675edd7?auto=format&fit=crop&w=900&q=80"
+};
+
+const REGION_PHOTOS = {
+  여수: PHOTO_BY_ID.YS_01,
+  광주: PHOTO_BY_ID.GJ_01,
+  담양: PHOTO_BY_ID.DY_01,
+  순천: PHOTO_BY_ID.SC_01,
+  목포: PHOTO_BY_ID.MP_02
+};
+
 function init() {
   setDefaultDates();
   renderTasteCards();
@@ -529,27 +562,11 @@ function renderResults() {
   const { input, persona, candidates } = state.result;
   document.querySelector("#empty-state").classList.add("hidden");
   document.querySelector("#results").classList.remove("hidden");
-  document.querySelectorAll(".agent-strip article").forEach((item) => item.classList.add("active"));
+  document.querySelector("#hero-photo").src = REGION_PHOTOS[input.region] || imageForPlace(candidates[0]);
+  document.querySelector("#hero-photo").alt = `${input.region} 여행 사진`;
+  document.querySelector("#trip-summary").textContent = `${input.region} · ${getDays(input)}일 · ${transportPolicy[input.transport].label} · ${input.people}명`;
   document.querySelector("#persona").textContent = persona.sentence;
-  document.querySelector("#keywords").textContent = `검색 키워드: ${persona.keywords.join(", ")} | 제약: ${persona.constraints.join(" / ") || "특수 제약 없음"}`;
-  document.querySelector("#input-json").textContent = JSON.stringify(
-    {
-      region: input.region,
-      start_date: input.startDate,
-      end_date: input.endDate,
-      days: getDays(input),
-      people: input.people,
-      transport: input.transport,
-      pace: input.pace,
-      baby: input.baby,
-      pet: input.pet,
-      styles: input.styles,
-      tournament_answers: input.tastes,
-      free_text: input.request
-    },
-    null,
-    2
-  );
+  document.querySelector("#keywords").textContent = `반영한 키워드: ${persona.keywords.slice(0, 8).join(", ")}${persona.constraints.length ? ` · ${persona.constraints.join(" · ")}` : ""}`;
   document.querySelector("#candidate-count").textContent = candidates.length;
   document.querySelector("#avg-score").textContent = Math.round(candidates.reduce((sum, place) => sum + place.ragScore, 0) / candidates.length);
   document.querySelector("#days-count").textContent = getDays(input);
@@ -559,13 +576,17 @@ function renderResults() {
 
 function renderCandidates(candidates) {
   document.querySelector("#candidate-list").innerHTML = candidates
-    .slice(0, 8)
+    .slice(0, 6)
     .map((place) => {
       return `
         <article class="candidate-card">
-          <strong>${place.name} · ${place.ragScore}점</strong>
-          <p>${place.description}</p>
+          <img src="${imageForPlace(place)}" alt="${place.name} 사진" loading="lazy" />
+          <div class="candidate-body">
+            <strong>${place.name}</strong>
+            <p>${place.description}</p>
+          </div>
           <div class="tag-row">
+            <span class="tag score">${place.ragScore}점</span>
             ${place.evidence.map((item) => `<span class="tag">${item}</span>`).join("")}
           </div>
         </article>
@@ -583,9 +604,9 @@ function renderPlan() {
   document.querySelectorAll(".tabs button").forEach((button) => {
     button.classList.toggle("active", button.dataset.plan === state.activePlan);
   });
-  document.querySelector("#draft-timeline").innerHTML = renderTimeline(plan.draft);
   document.querySelector("#final-timeline").innerHTML = renderTimeline(plan.final);
   document.querySelector("#simulation-log").innerHTML = plan.logs
+    .slice(0, 7)
     .map(
       (log) => `
         <div class="log-row ${log.tone}">
@@ -605,13 +626,14 @@ function renderTimeline(days) {
         .map(
           (item, index) => `
             <div class="schedule-item">
-              <div class="time">${item.start}<br />${item.end}</div>
+              <img class="schedule-photo" src="${imageForPlace(item)}" alt="${item.name} 사진" loading="lazy" />
               <div>
                 <div class="place-title">
                   <span>${index + 1}. ${item.name}</span>
                   <span class="badge">${item.category}</span>
                   <span class="badge">이동 ${item.travel}분</span>
                 </div>
+                <div class="time">${item.start} - ${item.end}</div>
                 <p class="reason">${item.reason}</p>
               </div>
             </div>
@@ -660,6 +682,10 @@ function renderMap(days) {
 
 function setMessage(message) {
   document.querySelector("#form-message").textContent = message;
+}
+
+function imageForPlace(place) {
+  return PHOTO_BY_ID[place?.id] || "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80";
 }
 
 init();
