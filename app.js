@@ -1887,7 +1887,7 @@ function exportActiveSchedule() {
                 <th>장소</th>
                 <th>분류</th>
                 <th>이동</th>
-                <th>메모</th>
+                <th>장소 설명</th>
               </tr>
             </thead>
             <tbody>
@@ -1899,7 +1899,7 @@ function exportActiveSchedule() {
                       <td>${escapeHtml(item.name)}</td>
                       <td>${escapeHtml(item.category)}</td>
                       <td>${escapeHtml(String(item.travel || 0))}분</td>
-                      <td>${escapeHtml(item.reason || "")}</td>
+                      <td>${escapeHtml(compactDescription(item.description))}</td>
                     </tr>
                   `
                 )
@@ -1912,7 +1912,8 @@ function exportActiveSchedule() {
     .join("");
   const checks = plan.logs
     .slice(0, 8)
-    .map((log) => `<li><strong>${escapeHtml(log.type)}</strong> ${escapeHtml(log.message)}</li>`)
+    .filter((log) => log.tone === "warning")
+    .map((log) => `<li>${escapeHtml(log.message)}</li>`)
     .join("");
 
   const printWindow = window.open("", "_blank");
@@ -1928,13 +1929,18 @@ function exportActiveSchedule() {
         <title>${escapeHtml(title)}</title>
         <style>
           * { box-sizing: border-box; }
-          body { margin: 0; padding: 28px; color: #102a43; font-family: Arial, "Malgun Gothic", sans-serif; }
-          h1 { margin: 0 0 8px; font-size: 26px; }
-          h2 { margin: 28px 0 10px; font-size: 18px; }
+          body { margin: 0; padding: 30px; color: #102a43; font-family: Arial, "Malgun Gothic", sans-serif; }
+          h1 { margin: 0 0 8px; font-size: 25px; letter-spacing: 0; }
+          h2 { margin: 28px 0 10px; font-size: 17px; }
           .meta { margin: 0 0 18px; color: #486581; line-height: 1.6; }
-          table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
-          th, td { border: 1px solid #c9e7f3; padding: 10px; text-align: left; vertical-align: top; font-size: 13px; }
+          table { width: 100%; table-layout: fixed; border-collapse: collapse; page-break-inside: avoid; }
+          th, td { border: 1px solid #c9e7f3; padding: 9px 10px; text-align: left; vertical-align: top; font-size: 12px; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere; }
           th { background: #eaf8ff; color: #12344d; }
+          th:nth-child(1), td:nth-child(1) { width: 15%; }
+          th:nth-child(2), td:nth-child(2) { width: 20%; font-weight: 700; }
+          th:nth-child(3), td:nth-child(3) { width: 10%; }
+          th:nth-child(4), td:nth-child(4) { width: 10%; }
+          th:nth-child(5), td:nth-child(5) { width: 45%; font-weight: 400; color: #334e68; }
           ul { margin: 8px 0 0; padding-left: 18px; color: #334e68; }
           li { margin: 6px 0; }
           .print-guide { margin: 0 0 18px; padding: 10px 12px; border: 1px solid #ffd3c8; border-radius: 10px; background: #fff7f4; color: #9f3a2d; }
@@ -1952,14 +1958,18 @@ function exportActiveSchedule() {
           출발: ${escapeHtml(input.arrival.from)} ${escapeHtml(input.departureTime)} · 예상 도착: ${escapeHtml(input.arrival.time)} · 약 ${Math.round(input.arrival.distance)}km / ${input.arrival.minutes}분
         </p>
         ${rows}
-        <h2>일정 확인 메모</h2>
-        <ul>${checks}</ul>
+        ${checks ? `<h2>여행 참고사항</h2><ul>${checks}</ul>` : ""}
       </body>
     </html>
   `);
   printWindow.document.close();
   printWindow.focus();
   setTimeout(() => printWindow.print(), 350);
+}
+
+function compactDescription(description) {
+  const text = String(description || "장소 상세 정보는 지도 링크에서 확인할 수 있습니다.").replace(/\s+/g, " ").trim();
+  return text.length > 115 ? `${text.slice(0, 112)}...` : text;
 }
 
 function escapeHtml(value) {
