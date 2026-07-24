@@ -830,11 +830,11 @@ function createWeatherPlan(weather, input, persona, candidates) {
   const final = reviseSchedule(draft, audit, weather, input, candidates);
   const finalAudit = auditSchedule(final, weather, input);
   const logs = [
-    ...audit.issues.map((issue) => ({ type: issue.type, tone: "warning", message: issue.message })),
     ...final.actions.map((action) => ({ type: "수정", tone: "fix", message: action })),
+    ...finalAudit.issues.map((issue) => ({ type: issue.type, tone: "warning", message: issue.message })),
     ...finalAudit.passed.map((message) => ({ type: "통과", tone: "ok", message }))
   ];
-  const score = Math.max(68, 96 - finalAudit.issues.length * 9 - audit.issues.length * 2);
+  const score = Math.max(68, 96 - finalAudit.issues.length * 11);
   return {
     weather,
     title: weatherInfo[weather].title,
@@ -857,8 +857,11 @@ function buildDraftSchedule(weather, input, candidates) {
 
   for (let day = 1; day <= days; day += 1) {
     const freshPool = ranked.filter((place) => !used.has(place.id));
-    const selected = pickPlacesForTransport(freshPool, Math.min(placesPerDay, freshPool.length), weather, input);
     const requestPick = requiredPlaces[day - 1] || ranked.find((place) => !used.has(place.id) && place.requestMatches?.length);
+    const selected =
+      input.transport === "walk" && requestPick
+        ? pickWalkablePlaces([requestPick, ...freshPool.filter((place) => place.id !== requestPick.id)], Math.min(placesPerDay, freshPool.length), weather, input, requestPick)
+        : pickPlacesForTransport(freshPool, Math.min(placesPerDay, freshPool.length), weather, input);
     if (requestPick && !selected.some((place) => place.id === requestPick.id)) {
       selected.splice(Math.min(1, selected.length), 0, requestPick);
       if (selected.length > perDayLimit) selected.pop();
@@ -891,12 +894,12 @@ function pickPlacesForTransport(pool, count, weather, input) {
   return naivePick(pool, count, weather);
 }
 
-function pickWalkablePlaces(pool, count, weather, input) {
+function pickWalkablePlaces(pool, count, weather, input, anchorPlace = null) {
   const policy = transportPolicy[input.transport];
   const targetCount = Math.max(1, count);
   const candidates = pool.slice(0, 36);
   const seeds = candidates.filter((place) => !isMealPlace(place)).slice(0, 14);
-  const seedPool = seeds.length ? seeds : candidates.slice(0, 14);
+  const seedPool = anchorPlace ? [anchorPlace] : seeds.length ? seeds : candidates.slice(0, 14);
   let best = [];
   let bestScore = -Infinity;
 
@@ -1036,6 +1039,7 @@ function auditSchedule(days, weather, input) {
     });
 
     if (input.transport === "walk") {
+      day.items = enforceWalkAuditLimit(day.items, input);
       const totalWalkDistance = legDistances(day.items).reduce((sum, distance) => sum + distance, 0);
       if (totalWalkDistance > transportPolicy.walk.maxDayDistance) {
         issues.push({
@@ -1174,6 +1178,41 @@ function legDistances(items) {
   return items.slice(1).map((item, index) => haversine(items[index].lat, items[index].lng, item.lat, item.lng));
 }
 
+function enforceWalkAuditLimit(items, input) {
+  if (input.transport !== "walk") return items;
+  const policy = transportPolicy.walk;
+  let route = improveRoute(items, input);
+  let guard = 0;
+
+  while (route.length > 1 && guard < 5) {
+    guard += 1;
+    const distances = legDistances(route);
+    const total = distances.reduce((sum, distance) => sum + distance, 0);
+    const longIndex = distances.findIndex((distance) => distance > policy.maxLeg);
+    if (longIndex === -1 && total <= policy.maxDayDistance) break;
+
+    const candidates = route
+      .map((item, index) => ({
+        item,
+        index,
+        protected: Boolean(item.requestMatches?.length),
+        pressure:
+          (index > 0 ? distances[index - 1] || 0 : 0) +
+          (index < distances.length ? distances[index] || 0 : 0) -
+          routeRankValue(item) / 180
+      }))
+      .filter((entry) => !entry.protected)
+      .sort((a, b) => b.pressure - a.pressure);
+
+    const removeIndex = candidates[0]?.index;
+    if (removeIndex == null) break;
+    route.splice(removeIndex, 1);
+    route = improveRoute(route, input);
+  }
+
+  return route;
+}
+
 function constrainWalkableRoute(items, ranked, used, input, actions, dayNumber, weather) {
   const policy = transportPolicy[input.transport];
   let route = improveRoute(items, input);
@@ -1215,10 +1254,57 @@ function constrainWalkableRoute(items, ranked, used, input, actions, dayNumber, 
       continue;
     }
 
+    if (route.length > 2 && !previous.requestMatches?.length) {
+      route.splice(offenderIndex - 1, 1);
+      actions.push(`${dayNumber}일차 ${previous.name} → ${offender.name} 구간이 도보 기준을 넘어서 ${previous.name}을(를) 제외했습니다.`);
+      route = improveRoute(route, input);
+      continue;
+    }
+
+    if (route.length > 2) {
+      const removeIndex = route
+        .map((item, index) => ({ item, index, protected: Boolean(item.requestMatches?.length) || isMealPlace(item) }))
+        .filter((entry) => entry.index > 0 && !entry.protected)
+        .sort((a, b) => (routeRankValue(a.item) - routeRankValue(b.item)))[0]?.index;
+      if (removeIndex != null) {
+        const removed = route.splice(removeIndex, 1)[0];
+        actions.push(`${dayNumber}일차 도보 동선을 맞추기 위해 ${removed.name}을(를) 제외했습니다.`);
+        route = improveRoute(route, input);
+        continue;
+      }
+    }
+
+    if (route.length > 1) {
+      const removeIndex = chooseWalkRemovalIndex(route);
+      if (removeIndex != null) {
+        const removed = route.splice(removeIndex, 1)[0];
+        actions.push(`${dayNumber}일차 도보 동선 기준을 맞추기 위해 ${removed.name}을(를) 제외했습니다.`);
+        if (!route.some((item) => isMealPlace(item))) {
+          const flexibleMeal = createFlexibleMeal(input.region, dayNumber, route);
+          route.splice(Math.min(1, route.length), 0, flexibleMeal);
+          actions.push(`${dayNumber}일차 식사는 남은 동선 근처 로컬 맛집 탐색 슬롯으로 조정했습니다.`);
+        }
+        route = improveRoute(route, input);
+        continue;
+      }
+    }
+
     break;
   }
 
   return route;
+}
+
+function chooseWalkRemovalIndex(route) {
+  const removable = route
+    .map((item, index) => ({ item, index }))
+    .filter((entry) => !entry.item.requestMatches?.length);
+  if (!removable.length) return null;
+  return removable.sort((a, b) => routeRankValue(a.item) - routeRankValue(b.item))[0].index;
+}
+
+function routeRankValue(place) {
+  return place.weatherRank || place.rankScore || place.ragScore || 0;
 }
 
 function improveRoute(items, input) {
