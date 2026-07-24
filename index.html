@@ -61,7 +61,25 @@
             <div class="field-pair">
               <label>
                 출발 장소
-                <input name="departurePlace" type="text" value="광주송정역" placeholder="예: 서울역, 광주송정역, 부산" />
+                <select name="departurePlace">
+                  <option value="서울">서울</option>
+                  <option value="경기">경기</option>
+                  <option value="인천">인천</option>
+                  <option value="강원">강원</option>
+                  <option value="충북">충북</option>
+                  <option value="충남">충남</option>
+                  <option value="대전">대전</option>
+                  <option value="세종">세종</option>
+                  <option value="전북">전북</option>
+                  <option value="광주" selected>광주</option>
+                  <option value="전남">전남</option>
+                  <option value="대구">대구</option>
+                  <option value="경북">경북</option>
+                  <option value="부산">부산</option>
+                  <option value="울산">울산</option>
+                  <option value="경남">경남</option>
+                  <option value="제주">제주</option>
+                </select>
               </label>
               <label>
                 출발 시간
@@ -285,6 +303,6 @@
     <script src="./config.public.js"></script>
     <script src="./config.local.js"></script>
     <script src="./data/places.js"></script>
-    <script src="./app.js?v=20260724-departure-pdf"></script>
+    <script src="./app.js?v=20260724-departure-province"></script>
   </body>
 </html>

@@ -293,16 +293,23 @@ const REGION_CENTERS = {
 };
 
 const DEPARTURE_POINTS = [
-  { match: /광주송정|송정역|광주/, name: "광주송정역", lat: 35.1378, lng: 126.7911 },
-  { match: /서울역|서울|강남|잠실|홍대/, name: "서울", lat: 37.5547, lng: 126.9706 },
-  { match: /부산역|부산/, name: "부산", lat: 35.1152, lng: 129.0415 },
-  { match: /대전역|대전/, name: "대전", lat: 36.3326, lng: 127.4348 },
-  { match: /대구역|동대구|대구/, name: "대구", lat: 35.8796, lng: 128.6286 },
-  { match: /전주역|전주/, name: "전주", lat: 35.8496, lng: 127.1616 },
-  { match: /목포역|목포/, name: "목포", lat: 34.7913, lng: 126.3867 },
-  { match: /여수엑스포|여수역|여수/, name: "여수", lat: 34.7525, lng: 127.7476 },
-  { match: /순천역|순천/, name: "순천", lat: 34.9469, lng: 127.5031 },
-  { match: /담양/, name: "담양", lat: 35.3211, lng: 126.9882 }
+  { id: "서울", name: "서울", lat: 37.5547, lng: 126.9706 },
+  { id: "경기", name: "경기", lat: 37.4138, lng: 127.5183 },
+  { id: "인천", name: "인천", lat: 37.4563, lng: 126.7052 },
+  { id: "강원", name: "강원", lat: 37.8228, lng: 128.1555 },
+  { id: "충북", name: "충북", lat: 36.6357, lng: 127.4917 },
+  { id: "충남", name: "충남", lat: 36.5184, lng: 126.8000 },
+  { id: "대전", name: "대전", lat: 36.3326, lng: 127.4348 },
+  { id: "세종", name: "세종", lat: 36.4801, lng: 127.2890 },
+  { id: "전북", name: "전북", lat: 35.7175, lng: 127.1530 },
+  { id: "광주", name: "광주", lat: 35.1595, lng: 126.8526 },
+  { id: "전남", name: "전남", lat: 34.8679, lng: 126.9910 },
+  { id: "대구", name: "대구", lat: 35.8796, lng: 128.6286 },
+  { id: "경북", name: "경북", lat: 36.4919, lng: 128.8889 },
+  { id: "부산", name: "부산", lat: 35.1152, lng: 129.0415 },
+  { id: "울산", name: "울산", lat: 35.5384, lng: 129.3114 },
+  { id: "경남", name: "경남", lat: 35.4606, lng: 128.2132 },
+  { id: "제주", name: "제주", lat: 33.4996, lng: 126.5312 }
 ];
 
 function init() {
@@ -326,7 +333,7 @@ function fillDemo() {
   const form = document.querySelector("#trip-form");
   form.region.value = "여수";
   form.tripLength.value = "2";
-  form.departurePlace.value = "광주송정역";
+  form.departurePlace.value = "광주";
   form.departureTime.value = "08:00";
   form.people.value = 2;
   form.transport.value = "car";
@@ -1117,10 +1124,7 @@ function estimateInboundTrip(input) {
 }
 
 function resolveDeparturePoint(value) {
-  const text = String(value || "").trim();
-  const known = DEPARTURE_POINTS.find((point) => point.match.test(text));
-  if (known) return known;
-  return { name: text || "출발지", lat: 36.35, lng: 127.38 };
+  return DEPARTURE_POINTS.find((point) => point.id === value) || DEPARTURE_POINTS.find((point) => point.id === "광주");
 }
 
 function timeToMinutes(time) {
