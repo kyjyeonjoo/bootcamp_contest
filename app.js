@@ -975,7 +975,7 @@ function naivePick(pool, count, weather, input = {}) {
 }
 
 function getMaxMealsPerDay(input) {
-  const foodFocused = input.styles?.includes("food") || input.tastes?.includes("local_food");
+  const foodFocused = input.styles?.includes("food");
   if (foodFocused) return input.pace === "packed" ? 4 : 3;
   return 2;
 }
