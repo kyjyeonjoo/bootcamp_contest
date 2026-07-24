@@ -60,6 +60,17 @@
 
             <div class="field-pair">
               <label>
+                출발 장소
+                <input name="departurePlace" type="text" value="광주송정역" placeholder="예: 서울역, 광주송정역, 부산" />
+              </label>
+              <label>
+                출발 시간
+                <input name="departureTime" type="time" value="08:00" />
+              </label>
+            </div>
+
+            <div class="field-pair">
+              <label>
                 이동 방식
                 <select name="transport">
                   <option value="car">자가용</option>
@@ -145,6 +156,7 @@
 
           <div id="results" class="results hidden">
             <div class="result-toolbar">
+              <button id="export-schedule" type="button" class="ghost">PDF 저장</button>
               <button id="edit-input" type="button" class="ghost">입력 수정하기</button>
             </div>
             <section class="hero-card">
@@ -273,6 +285,6 @@
     <script src="./config.public.js"></script>
     <script src="./config.local.js"></script>
     <script src="./data/places.js"></script>
-    <script src="./app.js?v=20260724-meal-limit"></script>
+    <script src="./app.js?v=20260724-departure-pdf"></script>
   </body>
 </html>

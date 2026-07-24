@@ -284,12 +284,34 @@ const REGION_PHOTOS = {
   목포: PHOTO_BY_ID.MP_02
 };
 
+const REGION_CENTERS = {
+  광주: { lat: 35.1595, lng: 126.8526 },
+  여수: { lat: 34.7604, lng: 127.6622 },
+  목포: { lat: 34.8118, lng: 126.3922 },
+  순천: { lat: 34.9506, lng: 127.4872 },
+  담양: { lat: 35.3211, lng: 126.9882 }
+};
+
+const DEPARTURE_POINTS = [
+  { match: /광주송정|송정역|광주/, name: "광주송정역", lat: 35.1378, lng: 126.7911 },
+  { match: /서울역|서울|강남|잠실|홍대/, name: "서울", lat: 37.5547, lng: 126.9706 },
+  { match: /부산역|부산/, name: "부산", lat: 35.1152, lng: 129.0415 },
+  { match: /대전역|대전/, name: "대전", lat: 36.3326, lng: 127.4348 },
+  { match: /대구역|동대구|대구/, name: "대구", lat: 35.8796, lng: 128.6286 },
+  { match: /전주역|전주/, name: "전주", lat: 35.8496, lng: 127.1616 },
+  { match: /목포역|목포/, name: "목포", lat: 34.7913, lng: 126.3867 },
+  { match: /여수엑스포|여수역|여수/, name: "여수", lat: 34.7525, lng: 127.7476 },
+  { match: /순천역|순천/, name: "순천", lat: 34.9469, lng: 127.5031 },
+  { match: /담양/, name: "담양", lat: 35.3211, lng: 126.9882 }
+];
+
 function init() {
   renderTasteCards();
   renderFoodWorldcup();
   document.querySelector("#generate").addEventListener("click", generate);
   document.querySelector("#demo-fill").addEventListener("click", fillDemo);
   document.querySelector("#edit-input").addEventListener("click", showInputPanel);
+  document.querySelector("#export-schedule").addEventListener("click", exportActiveSchedule);
   document.querySelectorAll(".tabs button").forEach((button) => {
     button.addEventListener("click", () => {
       state.activePlan = button.dataset.plan;
@@ -304,6 +326,8 @@ function fillDemo() {
   const form = document.querySelector("#trip-form");
   form.region.value = "여수";
   form.tripLength.value = "2";
+  form.departurePlace.value = "광주송정역";
+  form.departureTime.value = "08:00";
   form.people.value = 2;
   form.transport.value = "car";
   form.companion.value = "couple";
@@ -564,9 +588,11 @@ function mergePlaces(remotePlaces) {
 
 function readInput() {
   const form = new FormData(document.querySelector("#trip-form"));
-  return {
+  const input = {
     region: form.get("region"),
     tripLength: Number(form.get("tripLength") || 2),
+    departurePlace: String(form.get("departurePlace") || "").trim(),
+    departureTime: form.get("departureTime"),
     people: Number(form.get("people") || 1),
     pace: form.get("pace"),
     transport: form.get("transport"),
@@ -578,6 +604,8 @@ function readInput() {
     tastes: Object.values(state.tastes),
     foodPreference: getFoodPreference()
   };
+  input.arrival = estimateInboundTrip(input);
+  return input;
 }
 
 function getFoodPreference() {
@@ -591,6 +619,8 @@ function getFoodPreference() {
 
 function validate(input) {
   if (![1, 2, 3].includes(input.tripLength)) return "여행 기간을 선택해주세요.";
+  if (!input.departurePlace) return "출발 장소를 입력해주세요.";
+  if (!input.departureTime) return "출발 시간을 입력해주세요.";
   if (Object.keys(state.tastes).length < 4) return "취향 토너먼트를 4개 이상 선택해주세요.";
   if (input.request.length > 200) return "추가 요청은 200자 이내로 입력해주세요.";
   return "";
@@ -859,7 +889,7 @@ function buildDraftSchedule(weather, input, candidates) {
     selected.forEach((place) => used.add(place.id));
     result.push({
       day,
-      items: assignTimes(selected, weather, input, false)
+      items: assignTimes(selected, weather, input, false, day)
     });
   }
   return result;
@@ -1028,15 +1058,8 @@ function selectPreferredMeal(pool, input, anchor = null) {
     .sort((a, b) => b.score - a.score)[0]?.place || null;
 }
 
-function assignTimes(places, weather, input, revised) {
-  const starts =
-    weather === "extreme"
-      ? revised
-        ? ["09:30", "12:00", "14:10", "17:30", "19:00", "20:00"]
-        : ["10:20", "12:30", "14:00", "16:10", "18:20", "19:30"]
-      : revised
-        ? ["09:50", "12:00", "14:00", "16:10", "18:10", "19:30"]
-        : ["10:20", "13:40", "15:20", "17:00", "18:40", "20:00"];
+function assignTimes(places, weather, input, revised, day = 1) {
+  const starts = getScheduleStarts(weather, input, revised, day);
 
   return places.map((place, index) => {
     const start = starts[index] || addMinutes(starts[starts.length - 1], index * 50);
@@ -1050,6 +1073,64 @@ function assignTimes(places, weather, input, revised) {
       reason: reasonFor(place, weather)
     };
   });
+}
+
+function getScheduleStarts(weather, input, revised, day = 1) {
+  const base =
+    weather === "extreme"
+      ? revised
+        ? ["09:30", "12:00", "14:10", "17:30", "19:00", "20:00"]
+        : ["10:20", "12:30", "14:00", "16:10", "18:20", "19:30"]
+      : revised
+        ? ["09:50", "12:00", "14:00", "16:10", "18:10", "19:30"]
+        : ["10:20", "13:40", "15:20", "17:00", "18:40", "20:00"];
+
+  if (day !== 1 || !input.arrival?.time) return base;
+  const firstStart = Math.max(timeToMinutes(base[0]), timeToMinutes(input.arrival.time) + 30);
+  if (firstStart < timeToMinutes("11:30")) return shiftStarts(base, firstStart);
+  if (firstStart < timeToMinutes("14:00")) return shiftStarts(["12:00", "14:00", "16:10", "18:10", "19:30"], firstStart);
+  if (firstStart < timeToMinutes("17:30")) return shiftStarts(["14:00", "16:10", "18:10", "19:30"], firstStart);
+  return shiftStarts(["18:00", "19:30", "20:40"], firstStart);
+}
+
+function shiftStarts(starts, minimumStart) {
+  const first = Math.max(timeToMinutes(starts[0]), minimumStart);
+  const offset = first - timeToMinutes(starts[0]);
+  return starts.map((time) => minutesToTime(timeToMinutes(time) + offset));
+}
+
+function estimateInboundTrip(input) {
+  const destination = REGION_CENTERS[input.region] || REGION_CENTERS.광주;
+  const departure = resolveDeparturePoint(input.departurePlace);
+  const distance = haversine(departure.lat, departure.lng, destination.lat, destination.lng);
+  const policy = transportPolicy[input.transport] || transportPolicy.car;
+  const longTripSpeed = input.transport === "walk" ? 4 : input.transport === "transit" ? 55 : input.transport === "taxi" ? 62 : 65;
+  const buffer = input.transport === "transit" ? 35 : input.transport === "walk" ? 0 : 25;
+  const minutes = Math.max(0, Math.round((distance / Math.max(longTripSpeed, policy.speed)) * 60 + buffer));
+  const arrivalMinutes = timeToMinutes(input.departureTime || "08:00") + minutes;
+  return {
+    from: departure.name,
+    distance,
+    minutes,
+    time: minutesToTime(arrivalMinutes)
+  };
+}
+
+function resolveDeparturePoint(value) {
+  const text = String(value || "").trim();
+  const known = DEPARTURE_POINTS.find((point) => point.match.test(text));
+  if (known) return known;
+  return { name: text || "출발지", lat: 36.35, lng: 127.38 };
+}
+
+function timeToMinutes(time) {
+  const [hours, mins] = String(time || "00:00").split(":").map(Number);
+  return (Number.isFinite(hours) ? hours : 0) * 60 + (Number.isFinite(mins) ? mins : 0);
+}
+
+function minutesToTime(totalMinutes) {
+  const normalized = ((Math.round(totalMinutes) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(normalized / 60)).padStart(2, "0")}:${String(normalized % 60).padStart(2, "0")}`;
 }
 
 function adjustedDuration(place, weather, input) {
@@ -1193,7 +1274,7 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
     if (input.transport === "walk") {
       items = constrainWalkableRoute(items, ranked, used, input, actions, day.day, weather);
     }
-    return { day: day.day, items: assignTimes(limitMealPlaces(items, input, perDayLimit), weather, input, true) };
+    return { day: day.day, items: assignTimes(limitMealPlaces(items, input, perDayLimit), weather, input, true, day.day) };
   });
 
   const dedupedDays = resolveDuplicateSchedule(revisedDays, ranked, input, actions, weather);
@@ -1259,7 +1340,7 @@ function resolveDuplicateSchedule(days, ranked, input, actions, weather) {
       }
     }
 
-    day.items = assignTimes(limitMealPlaces(improveRoute(items, input), input), weather, input, true);
+    day.items = assignTimes(limitMealPlaces(improveRoute(items, input), input), weather, input, true, day.day);
   });
 
   return days;
@@ -1518,7 +1599,7 @@ function reasonFor(place, weather) {
 function addMinutes(time, minutes) {
   const [hours, mins] = time.split(":").map(Number);
   const total = hours * 60 + mins + minutes;
-  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+  return minutesToTime(total);
 }
 
 function estimateTravel(a, b, transport) {
@@ -1544,7 +1625,7 @@ function renderResults() {
   document.querySelector("#results").classList.remove("hidden");
   document.querySelector("#hero-photo").src = REGION_PHOTOS[input.region] || imageForPlace(candidates[0]);
   document.querySelector("#hero-photo").alt = `${input.region} 여행 사진`;
-  document.querySelector("#trip-summary").textContent = `${input.region} · ${getDays(input)}일 · ${transportPolicy[input.transport].label} · ${input.people}명`;
+  document.querySelector("#trip-summary").textContent = `${input.region} · ${getDays(input)}일 · ${transportPolicy[input.transport].label} · ${input.people}명 · ${input.arrival.from} ${input.departureTime} 출발 / ${input.arrival.time} 도착`;
   document.querySelector("#persona").textContent = persona.sentence;
   document.querySelector("#keywords").textContent = `반영한 키워드: ${persona.keywords.slice(0, 8).join(", ")}${persona.constraints.length ? ` · ${persona.constraints.join(" · ")}` : ""}`;
   document.querySelector("#candidate-count").textContent = candidates.length;
@@ -1578,7 +1659,7 @@ function renderAgentSimulation() {
   document.querySelector("#agent-status").textContent = `${candidates.length}곳 검색 · ${fixedCount}회 조정`;
   document.querySelector("#agent-map").dataset.weather = state.activePlan;
   document.querySelector("#journey-icon").textContent = transportIcon(input.transport);
-  document.querySelector("#agent-input").textContent = `${input.region} · ${getDays(input)}일 · ${transportPolicy[input.transport].label}`;
+  document.querySelector("#agent-input").textContent = `${input.arrival.from} ${input.departureTime} 출발 · ${input.arrival.time} 도착`;
   document.querySelector("#agent-rag").textContent = `${persona.keywords.slice(1, 4).join(" · ") || "취향"} 기반`;
   document.querySelector("#agent-sim").textContent = `${issueCount}개 조건 검토`;
   document.querySelector("#agent-plan").textContent = `${firstDay.length}곳부터 배치`;
@@ -1783,6 +1864,106 @@ function renderMap(days) {
   }
 
   renderFallbackMap(map, items);
+}
+
+function exportActiveSchedule() {
+  if (!state.result) return;
+  const input = state.result.input;
+  const plan = state.result.plans[state.activePlan];
+  const title = `${input.region} ${plan.title} 스케줄표`;
+  const rows = plan.final
+    .map(
+      (day) => `
+        <section>
+          <h2>${day.day}일차</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>시간</th>
+                <th>장소</th>
+                <th>분류</th>
+                <th>이동</th>
+                <th>메모</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${day.items
+                .map(
+                  (item) => `
+                    <tr>
+                      <td>${escapeHtml(item.start)} - ${escapeHtml(item.end)}</td>
+                      <td>${escapeHtml(item.name)}</td>
+                      <td>${escapeHtml(item.category)}</td>
+                      <td>${escapeHtml(String(item.travel || 0))}분</td>
+                      <td>${escapeHtml(item.reason || "")}</td>
+                    </tr>
+                  `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </section>
+      `
+    )
+    .join("");
+  const checks = plan.logs
+    .slice(0, 8)
+    .map((log) => `<li><strong>${escapeHtml(log.type)}</strong> ${escapeHtml(log.message)}</li>`)
+    .join("");
+
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    setMessage("팝업이 차단되어 PDF 화면을 열 수 없습니다. 브라우저 팝업 허용 후 다시 눌러주세요.");
+    return;
+  }
+  printWindow.document.write(`
+    <!doctype html>
+    <html lang="ko">
+      <head>
+        <meta charset="UTF-8" />
+        <title>${escapeHtml(title)}</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { margin: 0; padding: 28px; color: #102a43; font-family: Arial, "Malgun Gothic", sans-serif; }
+          h1 { margin: 0 0 8px; font-size: 26px; }
+          h2 { margin: 28px 0 10px; font-size: 18px; }
+          .meta { margin: 0 0 18px; color: #486581; line-height: 1.6; }
+          table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
+          th, td { border: 1px solid #c9e7f3; padding: 10px; text-align: left; vertical-align: top; font-size: 13px; }
+          th { background: #eaf8ff; color: #12344d; }
+          ul { margin: 8px 0 0; padding-left: 18px; color: #334e68; }
+          li { margin: 6px 0; }
+          .print-guide { margin: 0 0 18px; padding: 10px 12px; border: 1px solid #ffd3c8; border-radius: 10px; background: #fff7f4; color: #9f3a2d; }
+          @media print {
+            body { padding: 18mm; }
+            .print-guide { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <p class="print-guide">인쇄 창에서 대상/프린터를 "PDF로 저장"으로 선택하면 스케줄표를 PDF 파일로 저장할 수 있습니다.</p>
+        <h1>${escapeHtml(title)}</h1>
+        <p class="meta">
+          ${escapeHtml(input.region)} · ${getDays(input)}일 · ${escapeHtml(transportPolicy[input.transport].label)} · ${escapeHtml(String(input.people))}명<br />
+          출발: ${escapeHtml(input.arrival.from)} ${escapeHtml(input.departureTime)} · 예상 도착: ${escapeHtml(input.arrival.time)} · 약 ${Math.round(input.arrival.distance)}km / ${input.arrival.minutes}분
+        </p>
+        ${rows}
+        <h2>일정 확인 메모</h2>
+        <ul>${checks}</ul>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 350);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function loadKakaoMapScript() {
