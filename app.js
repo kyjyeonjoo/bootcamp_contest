@@ -942,7 +942,7 @@ function pickWalkablePlaces(pool, count, weather, input, anchorPlace = null) {
     }
   }
 
-  return improveRoute(best.slice(0, targetCount), input);
+  return limitMealPlaces(improveRoute(best.slice(0, targetCount), input), input, targetCount);
 }
 
 function scoreWalkableRoute(items, input) {
@@ -963,7 +963,7 @@ function naivePick(pool, count, weather, input = {}) {
   const night = pool.find((place) => place.slots.includes("night") || place.slots.includes("sunset"));
 
   pool.forEach((place) => {
-    if (selected.length < count && place !== food && place !== night) selected.push(place);
+    if (selected.length < count && place !== food && place !== night && canAddMealPlace(selected, place, input)) selected.push(place);
   });
   if (food && !selected.some((place) => place.id === food.id)) selected.splice(Math.min(1, selected.length), 0, food);
   if (night && !selected.some((place) => place.id === night.id)) selected.push(night);
@@ -971,7 +971,38 @@ function naivePick(pool, count, weather, input = {}) {
   if (weather === "extreme") {
     selected.sort((a, b) => Number(a.indoor) - Number(b.indoor));
   }
-  return selected.slice(0, count);
+  return limitMealPlaces(selected.slice(0, count), input, count);
+}
+
+function getMaxMealsPerDay(input) {
+  const foodFocused = input.styles?.includes("food") || input.tastes?.includes("local_food");
+  if (foodFocused) return input.pace === "packed" ? 4 : 3;
+  return 2;
+}
+
+function canAddMealPlace(selected, place, input) {
+  if (!isMealPlace(place)) return true;
+  return selected.filter((item) => isMealPlace(item)).length < getMaxMealsPerDay(input);
+}
+
+function limitMealPlaces(items, input, count = items.length) {
+  const maxMeals = getMaxMealsPerDay(input);
+  const meals = items.filter((item) => isMealPlace(item));
+  if (meals.length <= maxMeals) return items.slice(0, count);
+
+  const keepMeals = new Set(
+    meals
+      .map((item) => ({
+        item,
+        score: scoreFoodPreference(item, input.foodPreference) * 2 + (item.weatherRank || item.rankScore || item.ragScore || 0)
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxMeals)
+      .map((entry) => entry.item.id)
+  );
+
+  const trimmed = items.filter((item) => !isMealPlace(item) || keepMeals.has(item.id));
+  return trimmed.slice(0, count);
 }
 
 function selectPreferredMeal(pool, input, anchor = null) {
@@ -1162,7 +1193,7 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
     if (input.transport === "walk") {
       items = constrainWalkableRoute(items, ranked, used, input, actions, day.day, weather);
     }
-    return { day: day.day, items: assignTimes(items.slice(0, perDayLimit), weather, input, true) };
+    return { day: day.day, items: assignTimes(limitMealPlaces(items, input, perDayLimit), weather, input, true) };
   });
 
   const dedupedDays = resolveDuplicateSchedule(revisedDays, ranked, input, actions, weather);
@@ -1228,7 +1259,7 @@ function resolveDuplicateSchedule(days, ranked, input, actions, weather) {
       }
     }
 
-    day.items = assignTimes(improveRoute(items, input), weather, input, true);
+    day.items = assignTimes(limitMealPlaces(improveRoute(items, input), input), weather, input, true);
   });
 
   return days;
