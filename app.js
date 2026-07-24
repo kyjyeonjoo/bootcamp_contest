@@ -857,7 +857,11 @@ function buildDraftSchedule(weather, input, candidates) {
 
   for (let day = 1; day <= days; day += 1) {
     const freshPool = ranked.filter((place) => !used.has(place.id));
-    const requestPick = requiredPlaces[day - 1] || ranked.find((place) => !used.has(place.id) && place.requestMatches?.length);
+    const plannedRequired = requiredPlaces[day - 1];
+    const requestPick =
+      plannedRequired && !used.has(plannedRequired.id)
+        ? plannedRequired
+        : ranked.find((place) => !used.has(place.id) && place.requestMatches?.length);
     const selected =
       input.transport === "walk" && requestPick
         ? pickWalkablePlaces([requestPick, ...freshPool.filter((place) => place.id !== requestPick.id)], Math.min(placesPerDay, freshPool.length), weather, input, requestPick)
@@ -1009,8 +1013,13 @@ function adjustedDuration(place, weather, input) {
 function auditSchedule(days, weather, input) {
   const issues = [];
   const passed = [];
+  const seenPlaces = new Set();
   days.forEach((day) => {
-    if (!day.items.some((item) => item.category === "음식점")) {
+    if (input.transport === "walk") {
+      day.items = enforceWalkAuditLimit(day.items, input);
+    }
+
+    if (!day.items.some((item) => isMealPlace(item))) {
       issues.push({ type: "식사", message: `${day.day}일차에 점심/저녁 식사 장소가 없습니다.` });
     } else {
       passed.push(`${day.day}일차 식사 일정 포함`);
@@ -1039,7 +1048,6 @@ function auditSchedule(days, weather, input) {
     });
 
     if (input.transport === "walk") {
-      day.items = enforceWalkAuditLimit(day.items, input);
       const totalWalkDistance = legDistances(day.items).reduce((sum, distance) => sum + distance, 0);
       if (totalWalkDistance > transportPolicy.walk.maxDayDistance) {
         issues.push({
@@ -1050,6 +1058,15 @@ function auditSchedule(days, weather, input) {
         passed.push(`${day.day}일차 도보 이동 합계 ${totalWalkDistance.toFixed(1)}km로 조정`);
       }
     }
+
+    day.items.forEach((item) => {
+      const key = placeUniqueKey(item);
+      if (seenPlaces.has(key)) {
+        issues.push({ type: "중복", message: `${item.name}: 이미 다른 일정에 포함된 장소입니다.` });
+      } else {
+        seenPlaces.add(key);
+      }
+    });
 
     const lunchLike = day.items.some((item) => {
       const hour = Number(item.start.split(":")[0]);
@@ -1125,8 +1142,90 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
     return { day: day.day, items: assignTimes(items.slice(0, perDayLimit), weather, input, true) };
   });
 
+  const dedupedDays = resolveDuplicateSchedule(revisedDays, ranked, input, actions, weather);
   if (actions.length === 0 && audit.issues.length === 0) actions.push("초기 일정이 주요 검증 기준을 통과해 시간대만 정돈했습니다.");
-  return Object.assign(revisedDays, { actions });
+  return Object.assign(dedupedDays, { actions });
+}
+
+function resolveDuplicateSchedule(days, ranked, input, actions, weather) {
+  const seen = new Set();
+  const usedIds = new Set();
+
+  days.forEach((day) => {
+    let items = day.items.map((item) => ({ ...item }));
+
+    items = items
+      .map((item, index) => {
+        const key = placeUniqueKey(item);
+        if (!seen.has(key)) {
+          seen.add(key);
+          if (item.id) usedIds.add(item.id);
+          return item;
+        }
+
+        const replacement = findDuplicateReplacement(item, items, ranked, usedIds, seen, input, weather, index);
+        if (replacement) {
+          const replacementKey = placeUniqueKey(replacement);
+          seen.add(replacementKey);
+          if (replacement.id) usedIds.add(replacement.id);
+          actions.push(`${day.day}일차 중복 장소 ${item.name} 대신 ${replacement.name}을(를) 배치했습니다.`);
+          return replacement;
+        }
+
+        if (isMealPlace(item)) {
+          const flexibleMeal = createFlexibleMeal(input.region, day.day, items);
+          seen.add(placeUniqueKey(flexibleMeal));
+          actions.push(`${day.day}일차 중복 식당 ${item.name}은(는) 근처 로컬 맛집 탐색 슬롯으로 바꿨습니다.`);
+          return flexibleMeal;
+        }
+
+        actions.push(`${day.day}일차 중복 장소 ${item.name}을(를) 제외했습니다.`);
+        return null;
+      })
+      .filter(Boolean);
+
+    if (!items.some((item) => isMealPlace(item))) {
+      const meal = findDuplicateReplacement({ category: "음식점", lat: items[0]?.lat, lng: items[0]?.lng }, items, ranked, usedIds, seen, input, weather, 1);
+      if (meal) {
+        items.splice(Math.min(1, items.length), 0, meal);
+        seen.add(placeUniqueKey(meal));
+        usedIds.add(meal.id);
+        actions.push(`${day.day}일차 식사 중복을 피하기 위해 ${meal.name}을(를) 새로 배치했습니다.`);
+      } else {
+        const flexibleMeal = createFlexibleMeal(input.region, day.day, items);
+        items.splice(Math.min(1, items.length), 0, flexibleMeal);
+        seen.add(placeUniqueKey(flexibleMeal));
+        actions.push(`${day.day}일차 식사는 중복 방지를 위해 근처 로컬 맛집 탐색 슬롯으로 조정했습니다.`);
+      }
+    }
+
+    day.items = assignTimes(improveRoute(items, input), weather, input, true);
+  });
+
+  return days;
+}
+
+function findDuplicateReplacement(target, dayItems, ranked, usedIds, seen, input, weather, index) {
+  const wantMeal = isMealPlace(target);
+  const previous = dayItems[index - 1];
+  const next = dayItems[index + 1];
+  const policy = transportPolicy[input.transport];
+
+  return ranked.find((place) => {
+    if (usedIds.has(place.id) || seen.has(placeUniqueKey(place))) return false;
+    if (wantMeal !== isMealPlace(place)) return false;
+    if (!wantMeal && place.category === "음식점") return false;
+    if (weather === "rain" && target.indoor && !place.indoor) return false;
+    if (input.baby && place.baby === false) return false;
+    if (input.pet && place.pet !== true && !isMealPlace(place)) return false;
+    if (input.transport === "walk") {
+      const prevDistance = previous ? haversine(previous.lat, previous.lng, place.lat, place.lng) : 0;
+      const nextDistance = next ? haversine(place.lat, place.lng, next.lat, next.lng) : 0;
+      if (previous && prevDistance > policy.maxLeg) return false;
+      if (next && nextDistance > policy.maxLeg) return false;
+    }
+    return true;
+  });
 }
 
 function selectRequiredPlaces(ranked, input) {
@@ -1168,6 +1267,12 @@ function createFlexibleMeal(region, day, items) {
     description: "같은 식당을 반복하지 않도록 남겨둔 식사 탐색 시간입니다. 지도에서 현재 동선 근처 맛집을 확인해 고르면 됩니다.",
     evidence: ["중복 일정 방지", "식사 시간 확보", "지도 검색으로 실제 장소 확인"]
   };
+}
+
+function placeUniqueKey(place) {
+  if (!place) return "";
+  if (String(place.id || "").startsWith("FLEX_MEAL_")) return place.id;
+  return String(place.name || place.id || "").replace(/\s+/g, "").toLowerCase();
 }
 
 function isMealPlace(place) {
