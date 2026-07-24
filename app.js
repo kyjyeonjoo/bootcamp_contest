@@ -49,7 +49,7 @@ const foodWorldcupItems = [
     id: "meat",
     label: "떡갈비·고기",
     tags: ["food", "local_food", "family"],
-    pattern: /떡갈비|갈비|고기|구이|불고기|한우|정육|육회/,
+    pattern: /떡갈비|갈비|고기|구이|불고기|한우|정육|육회|곱창|막창|대창|삼겹살|숯불|오리/,
     visual: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=700&q=80"
   },
   {
@@ -724,10 +724,15 @@ function scoreMetadata(place, input) {
   if (place.category === "음식점" && input.styles.includes("food")) score += 12;
   if (place.category === "시장" && input.styles.includes("food")) score += 10;
   if (input.baby && place.baby) score += 8;
+  if (input.baby && place.indoor) score += 5;
+  if (input.baby && place.parking) score += 6;
+  if (input.baby && place.duration <= 90) score += 4;
+  if (input.baby && place.outdoor && !place.parking) score -= 5;
   if (input.transport === "car" && place.parking) score += 7;
   if (input.transport === "walk" && place.tags.includes("walking")) score += 6;
   if (input.pet && place.pet === true) score += 15;
-  if (input.pet && isMealPlace(place)) score -= 4;
+  if (input.pet && isMealPlace(place) && place.pet === false) score -= 18;
+  if (input.pet && isMealPlace(place) && place.pet == null) score -= 6;
   if (input.companion === "couple" && place.tags.includes("couple")) score += 5;
   return score;
 }
@@ -737,7 +742,7 @@ function scoreFoodPreference(place, foodPreference) {
   if (!ranking.length || !isMealPlace(place)) return 0;
   let score = 0;
   const text = `${place.name} ${place.category} ${place.description || ""} ${place.address || ""}`;
-  const weights = [48, 32, 22, 14, 10, 7, 5, 4];
+  const weights = [90, 58, 36, 22, 14, 9, 6, 4];
 
   ranking.forEach((item, index) => {
     const weight = weights[index] || 3;
@@ -895,7 +900,7 @@ function rankForWeather(candidates, weather, revised) {
 
 function pickPlacesForTransport(pool, count, weather, input) {
   if (input.transport === "walk") return pickWalkablePlaces(pool, count, weather, input);
-  return naivePick(pool, count, weather);
+  return naivePick(pool, count, weather, input);
 }
 
 function pickWalkablePlaces(pool, count, weather, input, anchorPlace = null) {
@@ -903,7 +908,12 @@ function pickWalkablePlaces(pool, count, weather, input, anchorPlace = null) {
   const targetCount = Math.max(1, count);
   const candidates = pool.slice(0, 36);
   const seeds = candidates.filter((place) => !isMealPlace(place)).slice(0, 14);
-  const seedPool = anchorPlace ? [anchorPlace] : seeds.length ? seeds : candidates.slice(0, 14);
+  const preferredMeal = selectPreferredMeal(candidates, input);
+  const seedPool = [
+    ...(anchorPlace ? [anchorPlace] : []),
+    ...(preferredMeal && preferredMeal.id !== anchorPlace?.id ? [preferredMeal] : []),
+    ...(seeds.length ? seeds : candidates.slice(0, 14))
+  ].filter((place, index, array) => array.findIndex((item) => item.id === place.id) === index);
   let best = [];
   let bestScore = -Infinity;
 
@@ -938,7 +948,12 @@ function pickWalkablePlaces(pool, count, weather, input, anchorPlace = null) {
   if (!best.length) best = candidates.slice(0, targetCount);
   if (!best.some((item) => isMealPlace(item))) {
     const anchor = best[0];
-    const closeMeal = candidates
+    const preferredCloseMeal = selectPreferredMeal(
+      candidates.filter((place) => !best.some((item) => item.id === place.id)),
+      input,
+      anchor
+    );
+    const closeMeal = preferredCloseMeal || candidates
       .filter((place) => isMealPlace(place) && !best.some((item) => item.id === place.id))
       .sort((a, b) => haversine(anchor.lat, anchor.lng, a.lat, a.lng) - haversine(anchor.lat, anchor.lng, b.lat, b.lng))[0];
     if (closeMeal) {
@@ -961,9 +976,9 @@ function scoreWalkableRoute(items, input) {
   return score - totalDistance * 28 - worstLeg * 80 - longLegs * 220 - mealPenalty;
 }
 
-function naivePick(pool, count, weather) {
+function naivePick(pool, count, weather, input = {}) {
   const selected = [];
-  const food = pool.find((place) => isMealPlace(place));
+  const food = selectPreferredMeal(pool, input) || pool.find((place) => isMealPlace(place));
   const night = pool.find((place) => place.slots.includes("night") || place.slots.includes("sunset"));
 
   pool.forEach((place) => {
@@ -976,6 +991,29 @@ function naivePick(pool, count, weather) {
     selected.sort((a, b) => Number(a.indoor) - Number(b.indoor));
   }
   return selected.slice(0, count);
+}
+
+function selectPreferredMeal(pool, input, anchor = null) {
+  const meals = pool.filter((place) => isMealPlace(place));
+  if (!meals.length) return null;
+  const ranking = input.foodPreference?.ranking || [];
+  return meals
+    .map((place) => {
+      const foodScore = scoreFoodPreference(place, input.foodPreference);
+      const distancePenalty = anchor ? haversine(anchor.lat, anchor.lng, place.lat, place.lng) * 4 : 0;
+      const rankScore = place.weatherRank || place.rankScore || place.ragScore || 0;
+      const companionPenalty =
+        (input.pet && place.pet === false ? 22 : 0) +
+        (input.pet && place.pet == null ? 8 : 0) +
+        (input.baby && place.baby === false ? 35 : 0);
+      return {
+        place,
+        score: foodScore * 2.5 + rankScore - distancePenalty - companionPenalty,
+        foodScore
+      };
+    })
+    .filter((entry) => !ranking.length || entry.foodScore > 0)
+    .sort((a, b) => b.score - a.score)[0]?.place || null;
 }
 
 function assignTimes(places, weather, input, revised) {
@@ -1113,7 +1151,11 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
     });
 
     if (!items.some((item) => isMealPlace(item))) {
-      const meal = ranked.find((place) => isMealPlace(place) && !used.has(place.id));
+      const meal = selectPreferredMeal(
+        ranked.filter((place) => !used.has(place.id)),
+        input,
+        items[0]
+      ) || ranked.find((place) => isMealPlace(place) && !used.has(place.id));
       if (meal) {
         items.splice(1, 0, meal);
         used.add(meal.id);
@@ -1185,7 +1227,13 @@ function resolveDuplicateSchedule(days, ranked, input, actions, weather) {
       .filter(Boolean);
 
     if (!items.some((item) => isMealPlace(item))) {
-      const meal = findDuplicateReplacement({ category: "음식점", lat: items[0]?.lat, lng: items[0]?.lng }, items, ranked, usedIds, seen, input, weather, 1);
+      const meal =
+        selectPreferredMeal(
+          ranked.filter((place) => !usedIds.has(place.id) && !seen.has(placeUniqueKey(place))),
+          input,
+          items[0]
+        ) ||
+        findDuplicateReplacement({ category: "음식점", lat: items[0]?.lat, lng: items[0]?.lng }, items, ranked, usedIds, seen, input, weather, 1);
       if (meal) {
         items.splice(Math.min(1, items.length), 0, meal);
         seen.add(placeUniqueKey(meal));
