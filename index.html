@@ -34,20 +34,20 @@
 
             <div class="field-pair">
               <label>
-                시작일
-                <input name="startDate" type="date" required />
+                여행 기간
+                <select name="tripLength">
+                  <option value="1">당일치기</option>
+                  <option value="2" selected>1박 2일</option>
+                  <option value="3">2박 3일</option>
+                </select>
               </label>
-              <label>
-                종료일
-                <input name="endDate" type="date" required />
-              </label>
-            </div>
-
-            <div class="field-pair">
               <label>
                 인원
                 <input name="people" type="number" min="1" max="10" value="2" />
               </label>
+            </div>
+
+            <div class="field-pair">
               <label>
                 일정 강도
                 <select name="pace">
@@ -273,6 +273,6 @@
     <script src="./config.public.js"></script>
     <script src="./config.local.js"></script>
     <script src="./data/places.js"></script>
-    <script src="./app.js?v=20260724-food-companion"></script>
+    <script src="./app.js?v=20260724-trip-length"></script>
   </body>
 </html>

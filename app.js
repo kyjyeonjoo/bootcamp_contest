@@ -285,7 +285,6 @@ const REGION_PHOTOS = {
 };
 
 function init() {
-  setDefaultDates();
   renderTasteCards();
   renderFoodWorldcup();
   document.querySelector("#generate").addEventListener("click", generate);
@@ -301,22 +300,10 @@ function init() {
   });
 }
 
-function setDefaultDates() {
-  const start = new Date();
-  start.setDate(start.getDate() + 10);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  document.querySelector("[name=startDate]").value = toInputDate(start);
-  document.querySelector("[name=endDate]").value = toInputDate(end);
-}
-
-function toInputDate(date) {
-  return date.toISOString().slice(0, 10);
-}
-
 function fillDemo() {
   const form = document.querySelector("#trip-form");
   form.region.value = "여수";
+  form.tripLength.value = "2";
   form.people.value = 2;
   form.transport.value = "car";
   form.companion.value = "couple";
@@ -579,9 +566,7 @@ function readInput() {
   const form = new FormData(document.querySelector("#trip-form"));
   return {
     region: form.get("region"),
-    startDate: form.get("startDate"),
-    endDate: form.get("endDate"),
-    days: 1,
+    tripLength: Number(form.get("tripLength") || 2),
     people: Number(form.get("people") || 1),
     pace: form.get("pace"),
     transport: form.get("transport"),
@@ -605,18 +590,14 @@ function getFoodPreference() {
 }
 
 function validate(input) {
-  if (!input.startDate || !input.endDate) return "날짜를 입력해주세요.";
-  if (new Date(input.endDate) < new Date(input.startDate)) return "종료일은 시작일보다 빠를 수 없습니다.";
+  if (![1, 2, 3].includes(input.tripLength)) return "여행 기간을 선택해주세요.";
   if (Object.keys(state.tastes).length < 4) return "취향 토너먼트를 4개 이상 선택해주세요.";
   if (input.request.length > 200) return "추가 요청은 200자 이내로 입력해주세요.";
   return "";
 }
 
 function getDays(input) {
-  const start = new Date(input.startDate);
-  const end = new Date(input.endDate);
-  const diff = Math.floor((end - start) / 86400000) + 1;
-  return Math.min(Math.max(diff, 1), 3);
+  return Math.min(Math.max(Number(input.tripLength) || 1, 1), 3);
 }
 
 function buildPersona(input) {
