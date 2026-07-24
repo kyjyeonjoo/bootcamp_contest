@@ -18,6 +18,7 @@ const REGIONS = {
 const CONTENT_TYPES = ["39", "38", "14", "28", "12"];
 const QUOTAS = { 39: 15, 38: 5, 14: 10, 28: 8, 12: 24 };
 const cache = new Map();
+const detailCache = new Map();
 
 function logLocalServer(message) {
   fs.appendFileSync(path.join(ROOT, "local-server.log"), `${new Date().toISOString()} ${message}\n`, "utf8");
@@ -93,6 +94,18 @@ function itemsOf(json) {
   return Array.isArray(item) ? item : [item];
 }
 
+function cleanText(value) {
+  return String(value || "")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<\/?[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function getSigunguCode(region) {
   if (!region.sigunguName) return "";
   const json = await fetchTourApi("areaCode2", {
@@ -113,6 +126,33 @@ async function fetchByType(region, sigunguCode, contentTypeId) {
   };
   if (sigunguCode) params.sigunguCode = sigunguCode;
   return itemsOf(await fetchTourApi("areaBasedList2", params)).filter((item) => item.title && item.mapx && item.mapy);
+}
+
+async function fetchDetailCommon(item) {
+  const contentId = String(item.contentid || "");
+  if (!contentId) return {};
+  if (detailCache.has(contentId)) return detailCache.get(contentId);
+
+  try {
+    const json = await fetchTourApi("detailCommon2", {
+      contentId,
+      numOfRows: "1",
+      pageNo: "1"
+    });
+    const detail = itemsOf(json)[0] || {};
+    const normalized = {
+      overview: cleanText(detail.overview),
+      homepage: cleanText(detail.homepage),
+      tel: cleanText(detail.tel)
+    };
+    detailCache.set(contentId, normalized);
+    return normalized;
+  } catch (error) {
+    logLocalServer(`detailCommon2 fallback for ${contentId}: ${error.message}`);
+    const fallback = {};
+    detailCache.set(contentId, fallback);
+    return fallback;
+  }
 }
 
 function cleanTitle(title) {
@@ -224,9 +264,15 @@ function tagsFor(item, category) {
   return [...new Set(tags)];
 }
 
-function normalize(item, regionName, prefix, index) {
+function fallbackDescription(item, regionName, category) {
+  const address = cleanText(item.addr1);
+  return `${address ? `${address}에 위치한 ` : ""}${regionName} ${category} 여행지입니다.`;
+}
+
+function normalize(item, regionName, prefix, index, detail = {}) {
   const category = categoryFor(item);
   const preset = presetFor(category);
+  const description = detail.overview || fallbackDescription(item, regionName, category);
   return {
     id: `LIVE_${prefix}_${String(index + 1).padStart(3, "0")}`,
     contentId: String(item.contentid || ""),
@@ -246,8 +292,23 @@ function normalize(item, regionName, prefix, index) {
     scores: preset.scores,
     image: item.firstimage || item.firstimage2 || "",
     address: item.addr1 || "",
-    description: `${item.addr1 ? `${item.addr1}에 위치한 ` : ""}${regionName} ${category} 여행지입니다.`
+    description,
+    source: detail.overview ? "tourapi-detail" : "tourapi-list"
   };
+}
+
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 async function getPlaces(regionName) {
@@ -282,7 +343,8 @@ async function getPlaces(regionName) {
     }
     if (selected.length >= 80) break;
   }
-  const places = selected.map((item, index) => normalize(item, regionName, region.prefix, index));
+  const details = await mapWithConcurrency(selected, 6, (item) => fetchDetailCommon(item));
+  const places = selected.map((item, index) => normalize(item, regionName, region.prefix, index, details[index]));
   cache.set(regionName, places);
   return places;
 }

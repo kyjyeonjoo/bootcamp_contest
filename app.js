@@ -584,13 +584,30 @@ function normalizeRemotePlaces(items, fallbackRegion) {
 
 function mergePlaces(remotePlaces) {
   if (!remotePlaces.length) return;
-  const keys = new Set(window.PLACES.map((place) => `${place.region}:${place.name}`));
+  const existingByKey = new Map(window.PLACES.map((place) => [`${place.region}:${place.name}`, place]));
   remotePlaces.forEach((place) => {
     const key = `${place.region}:${place.name}`;
-    if (keys.has(key)) return;
-    keys.add(key);
+    const existing = existingByKey.get(key);
+    if (existing) {
+      existing.description = preferDescription(existing.description, place.description);
+      existing.image = existing.image || place.image;
+      existing.contentId = existing.contentId || place.contentId;
+      existing.address = existing.address || place.address;
+      existing.source = place.source || existing.source;
+      return;
+    }
+    existingByKey.set(key, place);
     window.PLACES.push(place);
   });
+}
+
+function preferDescription(current, incoming) {
+  const oldText = String(current || "");
+  const newText = String(incoming || "");
+  const oldLooksGeneric = /에 위치한 .+ 여행지입니다/.test(oldText);
+  if (!newText) return oldText;
+  if (!oldText || oldLooksGeneric || newText.length > oldText.length + 20) return newText;
+  return oldText;
 }
 
 function readInput() {
