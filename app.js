@@ -1916,7 +1916,7 @@ function exportActiveSchedule() {
                       <td>${escapeHtml(item.name)}</td>
                       <td>${escapeHtml(item.category)}</td>
                       <td>${escapeHtml(String(item.travel || 0))}분</td>
-                      <td>${escapeHtml(compactDescription(item.description))}</td>
+                      <td>${escapeHtml(compactDescription(item))}</td>
                     </tr>
                   `
                 )
@@ -1984,9 +1984,56 @@ function exportActiveSchedule() {
   setTimeout(() => printWindow.print(), 350);
 }
 
-function compactDescription(description) {
-  const text = String(description || "장소 상세 정보는 지도 링크에서 확인할 수 있습니다.").replace(/\s+/g, " ").trim();
+function compactDescription(place) {
+  const text = descriptionForExport(place);
   return text.length > 115 ? `${text.slice(0, 112)}...` : text;
+}
+
+function descriptionForExport(place) {
+  const description = String(place?.description || "").replace(/\s+/g, " ").trim();
+  if (description && !isGenericDescription(description)) return description;
+  return buildFeatureDescription(place);
+}
+
+function isGenericDescription(description) {
+  return /에 위치한 .+ 여행지입니다\.?$/.test(description) || /공공데이터 기반 장소입니다/.test(description);
+}
+
+function buildFeatureDescription(place) {
+  const name = place?.name || "해당 장소";
+  const subject = `${name}${subjectParticle(name)}`;
+  const address = cleanAddress(place?.address);
+  const prefix = address ? `${address} 인근의 ` : "";
+  const tags = new Set(place?.tags || []);
+
+  if (isMealPlace(place)) {
+    if (/게장|갈치|꽃게/.test(name)) return `${prefix}${subject} 여수의 해산물과 게장 취향을 반영하기 좋은 식사 장소입니다. 지역 먹거리 중심 일정에서 점심이나 저녁 식사 후보로 적합합니다.`;
+    if (/카페|커피|디저트|베이커리/.test(name) || tags.has("cafe")) return `${prefix}${subject} 쉬어 가기 좋은 카페형 장소입니다. 이동 중 휴식과 분위기 있는 시간을 넣고 싶을 때 어울립니다.`;
+    if (/시장|포차|거리/.test(name) || tags.has("market")) return `${prefix}${subject} 지역 먹거리와 활기 있는 분위기를 함께 느끼기 좋은 장소입니다. 짧게 둘러보며 식사하기에 좋습니다.`;
+    return `${prefix}${subject} 지역 식사 시간을 안정적으로 넣기 위한 맛집 후보입니다. 일정 중 식사와 휴식을 함께 확보하기 좋습니다.`;
+  }
+
+  if (place?.category === "바다" || tags.has("sea")) return `${prefix}${subject} 바다 풍경과 산책 동선을 넣기 좋은 장소입니다. 맑은 날 코스에서 사진과 전망 요소를 살리기 좋습니다.`;
+  if (place?.category === "전망" || tags.has("view") || tags.has("night_view")) return `${prefix}${subject} 전망과 일몰·야경 요소를 넣기 좋은 장소입니다. 하루 후반부에 배치하면 코스의 마무리감이 살아납니다.`;
+  if (place?.category === "문화시설" || tags.has("culture") || tags.has("indoor")) return `${prefix}${subject} 실내 관람과 문화 요소를 보강하기 좋은 장소입니다. 비 오는 날이나 악천후 대체 코스로도 활용하기 좋습니다.`;
+  if (place?.category === "체험" || tags.has("activity")) return `${prefix}${subject} 여행 중 체험 요소를 더하기 좋은 장소입니다. 단순 관람보다 활동적인 일정을 원할 때 어울립니다.`;
+  if (place?.category === "마을" || tags.has("walking") || tags.has("quiet")) return `${prefix}${subject} 가볍게 걷고 지역 분위기를 느끼기 좋은 장소입니다. 여유로운 코스나 사진 중심 일정에 잘 맞습니다.`;
+  return `${prefix}${subject} ${place?.region || "여행지"} 코스에 넣기 좋은 방문 후보입니다. 주변 동선과 취향 조건을 함께 고려해 배치했습니다.`;
+}
+
+function subjectParticle(value) {
+  const char = [...String(value || "")].pop();
+  if (!char) return "는";
+  const code = char.charCodeAt(0);
+  if (code < 0xac00 || code > 0xd7a3) return "는";
+  return (code - 0xac00) % 28 === 0 ? "는" : "은";
+}
+
+function cleanAddress(address) {
+  return String(address || "")
+    .replace(/전남광주통합특별시\s*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function escapeHtml(value) {
