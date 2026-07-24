@@ -112,7 +112,7 @@ const kakaoMapState = {
 const transportPolicy = {
   car: { label: "자가용", speed: 30, buffer: 10, maxLeg: 15, places: { relaxed: 4, normal: 5, packed: 6 } },
   transit: { label: "대중교통", speed: 18, buffer: 15, maxLeg: 5, places: { relaxed: 3, normal: 4, packed: 5 } },
-  walk: { label: "도보 중심", speed: 4, buffer: 15, maxLeg: 2.4, places: { relaxed: 3, normal: 3, packed: 4 } },
+  walk: { label: "도보 중심", speed: 4, buffer: 12, maxLeg: 1.2, maxDayDistance: 4.2, places: { relaxed: 3, normal: 3, packed: 3 } },
   taxi: { label: "택시·혼합", speed: 25, buffer: 10, maxLeg: 10, places: { relaxed: 4, normal: 5, packed: 5 } }
 };
 
@@ -857,7 +857,7 @@ function buildDraftSchedule(weather, input, candidates) {
 
   for (let day = 1; day <= days; day += 1) {
     const freshPool = ranked.filter((place) => !used.has(place.id));
-    const selected = naivePick(freshPool, Math.min(placesPerDay, freshPool.length), weather);
+    const selected = pickPlacesForTransport(freshPool, Math.min(placesPerDay, freshPool.length), weather, input);
     const requestPick = requiredPlaces[day - 1] || ranked.find((place) => !used.has(place.id) && place.requestMatches?.length);
     if (requestPick && !selected.some((place) => place.id === requestPick.id)) {
       selected.splice(Math.min(1, selected.length), 0, requestPick);
@@ -884,6 +884,74 @@ function rankForWeather(candidates, weather, revised) {
       return { ...place, weatherRank: score };
     })
     .sort((a, b) => b.weatherRank - a.weatherRank);
+}
+
+function pickPlacesForTransport(pool, count, weather, input) {
+  if (input.transport === "walk") return pickWalkablePlaces(pool, count, weather, input);
+  return naivePick(pool, count, weather);
+}
+
+function pickWalkablePlaces(pool, count, weather, input) {
+  const policy = transportPolicy[input.transport];
+  const targetCount = Math.max(1, count);
+  const candidates = pool.slice(0, 36);
+  const seeds = candidates.filter((place) => !isMealPlace(place)).slice(0, 14);
+  const seedPool = seeds.length ? seeds : candidates.slice(0, 14);
+  let best = [];
+  let bestScore = -Infinity;
+
+  seedPool.forEach((seed) => {
+    const cluster = [seed];
+    while (cluster.length < targetCount) {
+      const next = candidates
+        .filter((place) => !cluster.some((item) => item.id === place.id))
+        .map((place) => {
+          const minDistance = Math.min(...cluster.map((item) => haversine(item.lat, item.lng, place.lat, place.lng)));
+          const mealBonus = !cluster.some((item) => isMealPlace(item)) && isMealPlace(place) ? 38 : 0;
+          const nightPenalty = place.slots.includes("night") || place.slots.includes("sunset") ? 10 : 0;
+          const tooFarPenalty = minDistance > policy.maxLeg ? (minDistance - policy.maxLeg) * 180 : 0;
+          return {
+            place,
+            score: (place.weatherRank || place.rankScore || place.ragScore || 0) + mealBonus - nightPenalty - minDistance * 58 - tooFarPenalty
+          };
+        })
+        .sort((a, b) => b.score - a.score)[0]?.place;
+      if (!next) break;
+      cluster.push(next);
+    }
+
+    const ordered = improveRoute(cluster, input);
+    const quality = scoreWalkableRoute(ordered, input);
+    if (quality > bestScore) {
+      best = ordered;
+      bestScore = quality;
+    }
+  });
+
+  if (!best.length) best = candidates.slice(0, targetCount);
+  if (!best.some((item) => isMealPlace(item))) {
+    const anchor = best[0];
+    const closeMeal = candidates
+      .filter((place) => isMealPlace(place) && !best.some((item) => item.id === place.id))
+      .sort((a, b) => haversine(anchor.lat, anchor.lng, a.lat, a.lng) - haversine(anchor.lat, anchor.lng, b.lat, b.lng))[0];
+    if (closeMeal) {
+      best = [best[0], closeMeal, ...best.slice(1)].slice(0, targetCount);
+    }
+  }
+
+  return improveRoute(best.slice(0, targetCount), input);
+}
+
+function scoreWalkableRoute(items, input) {
+  const policy = transportPolicy[input.transport];
+  const ordered = improveRoute(items, input);
+  const distances = legDistances(ordered);
+  const totalDistance = distances.reduce((sum, distance) => sum + distance, 0);
+  const worstLeg = Math.max(0, ...distances);
+  const longLegs = distances.filter((distance) => distance > policy.maxLeg).length;
+  const mealPenalty = ordered.some((item) => isMealPlace(item)) ? 0 : 90;
+  const score = ordered.reduce((sum, item) => sum + (item.weatherRank || item.rankScore || item.ragScore || 0), 0);
+  return score - totalDistance * 28 - worstLeg * 80 - longLegs * 220 - mealPenalty;
 }
 
 function naivePick(pool, count, weather) {
@@ -967,6 +1035,18 @@ function auditSchedule(days, weather, input) {
       }
     });
 
+    if (input.transport === "walk") {
+      const totalWalkDistance = legDistances(day.items).reduce((sum, distance) => sum + distance, 0);
+      if (totalWalkDistance > transportPolicy.walk.maxDayDistance) {
+        issues.push({
+          type: "이동",
+          message: `${day.day}일차 도보 이동 합계가 ${totalWalkDistance.toFixed(1)}km로 하루 도보 권장 범위를 넘습니다.`
+        });
+      } else {
+        passed.push(`${day.day}일차 도보 이동 합계 ${totalWalkDistance.toFixed(1)}km로 조정`);
+      }
+    }
+
     const lunchLike = day.items.some((item) => {
       const hour = Number(item.start.split(":")[0]);
       return isMealPlace(item) && hour >= 11 && hour <= 14;
@@ -1035,6 +1115,9 @@ function reviseSchedule(draft, audit, weather, input, candidates) {
     }
 
     items = improveRoute(items, input);
+    if (input.transport === "walk") {
+      items = constrainWalkableRoute(items, ranked, used, input, actions, day.day, weather);
+    }
     return { day: day.day, items: assignTimes(items.slice(0, perDayLimit), weather, input, true) };
   });
 
@@ -1087,8 +1170,60 @@ function isMealPlace(place) {
   return place?.category === "음식점" || place?.category === "시장";
 }
 
+function legDistances(items) {
+  return items.slice(1).map((item, index) => haversine(items[index].lat, items[index].lng, item.lat, item.lng));
+}
+
+function constrainWalkableRoute(items, ranked, used, input, actions, dayNumber, weather) {
+  const policy = transportPolicy[input.transport];
+  let route = improveRoute(items, input);
+  let guard = 0;
+
+  while (guard < 5) {
+    guard += 1;
+    const distances = legDistances(route);
+    const longIndex = distances.findIndex((distance) => distance > policy.maxLeg);
+    if (longIndex === -1) break;
+
+    const offenderIndex = longIndex + 1;
+    const offender = route[offenderIndex];
+    const previous = route[offenderIndex - 1];
+    const next = route[offenderIndex + 1];
+    const replacement = ranked.find((place) => {
+      if (used.has(place.id) || route.some((item) => item.id === place.id)) return false;
+      if (isMealPlace(offender) !== isMealPlace(place)) return false;
+      if (weather === "rain" && offender.indoor && !place.indoor) return false;
+      if (input.baby && place.baby === false) return false;
+      if (input.pet && place.pet !== true && !isMealPlace(place)) return false;
+      const prevDistance = haversine(previous.lat, previous.lng, place.lat, place.lng);
+      const nextDistance = next ? haversine(place.lat, place.lng, next.lat, next.lng) : 0;
+      return prevDistance <= policy.maxLeg && (!next || nextDistance <= policy.maxLeg);
+    });
+
+    if (replacement) {
+      route[offenderIndex] = replacement;
+      used.add(replacement.id);
+      actions.push(`${dayNumber}일차 도보 이동 부담을 줄이기 위해 ${offender.name} 대신 가까운 ${replacement.name}을(를) 배치했습니다.`);
+      route = improveRoute(route, input);
+      continue;
+    }
+
+    if (route.length > 2 && !offender.requestMatches?.length) {
+      route.splice(offenderIndex, 1);
+      actions.push(`${dayNumber}일차 ${previous.name} → ${offender.name} 구간이 도보 기준을 넘어서 ${offender.name}을(를) 제외했습니다.`);
+      route = improveRoute(route, input);
+      continue;
+    }
+
+    break;
+  }
+
+  return route;
+}
+
 function improveRoute(items, input) {
   if (items.length <= 2) return items;
+  if (input.transport === "walk") return improveWalkRoute(items);
   const food = items.find((item) => isMealPlace(item));
   const night = items.find((item) => item.slots.includes("night") || item.slots.includes("sunset"));
   const rest = items.filter((item) => item !== food && item !== night);
@@ -1101,6 +1236,23 @@ function improveRoute(items, input) {
     ordered.push(rest.shift());
   }
   if (night) ordered.push(night);
+  return ordered;
+}
+
+function improveWalkRoute(items) {
+  const remaining = [...items];
+  const start = remaining.sort((a, b) => (b.weatherRank || b.rankScore || b.ragScore || 0) - (a.weatherRank || a.rankScore || a.ragScore || 0)).shift();
+  const ordered = start ? [start] : [];
+  while (remaining.length) {
+    const current = ordered[ordered.length - 1];
+    remaining.sort((a, b) => haversine(current.lat, current.lng, a.lat, a.lng) - haversine(current.lat, current.lng, b.lat, b.lng));
+    ordered.push(remaining.shift());
+  }
+  const mealIndex = ordered.findIndex((item) => isMealPlace(item));
+  if (mealIndex > 1 && mealIndex < ordered.length - 1) {
+    const [meal] = ordered.splice(mealIndex, 1);
+    ordered.splice(1, 0, meal);
+  }
   return ordered;
 }
 
